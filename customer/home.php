@@ -234,7 +234,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
   <a class="brand" href="home.php">O2O <span style="font-style:italic">Tradition</span><small>Rent · Buy · Sell · Swap</small></a>
   <div class="nav-right">
     <span class="nav-user">👤 <?= htmlspecialchars($customerName) ?></span>
-    <a class="nav-link" href="orders.php">My Orders</a><a class="nav-link" href="recommendations.php">For You</a><a class="nav-link" href="notifications.php">🔔 Alerts</a>
+    <a class="nav-link" href="orders.php">My Orders</a><a class="nav-link" href="recommendations.php">For You</a><a class="nav-link" href="notifications.php">🔔 Alerts</a><a class="nav-link" href="rewards.php">♻ Rewards</a>
     <a class="nav-link" href="logout.php">Logout</a>
   </div>
 </nav>
