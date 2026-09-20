@@ -4,6 +4,7 @@ require_once '../shared/config.php';
 requireLogin('customer','login.php');
 $db=getDB();
 $sellerId=(int)$_SESSION['customer_id'];
+function notify(PDO $db,int $customerId,string $type,string $title,string $message):void{$db->prepare("INSERT INTO notifications(customer_id,type,title,message) VALUES(?,?,?,?)")->execute([$customerId,$type,$title,$message]);}
 
 $message='';
 $error='';
@@ -23,7 +24,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if($orderId<=0 || !isset($allowedTransitions[$newStatus])){
     $error='Invalid order update.';
   } else {
-    $st=$db->prepare("SELECT order_status FROM seller_purchase_orders WHERE id=? AND seller_id=? LIMIT 1");
+    $st=$db->prepare("SELECT order_status,buyer_id FROM seller_purchase_orders WHERE id=? AND seller_id=? LIMIT 1");
     $st->execute([$orderId,$sellerId]);
     $order=$st->fetch();
 
@@ -34,6 +35,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     } else {
       $up=$db->prepare("UPDATE seller_purchase_orders SET order_status=? WHERE id=? AND seller_id=?");
       $up->execute([$newStatus,$orderId,$sellerId]);
+      notify($db,(int)$order['buyer_id'],'seller_order_status','Pre-owned purchase updated','Your pre-owned purchase #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' is now '.ucfirst($newStatus).'.');
       $message='Order #'.str_pad((string)$orderId,6,'0',STR_PAD_LEFT).' updated to '.ucfirst($newStatus).'.';
     }
   }
