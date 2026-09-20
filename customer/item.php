@@ -56,6 +56,13 @@ $afterReport = $afterStmt->fetch();
 $sanStmt = $db->prepare("SELECT status, completed_at, notes, created_at FROM sanitization_records WHERE item_id = ? ORDER BY created_at DESC LIMIT 1");
 $sanStmt->execute([$itemId]);
 $sanitization = $sanStmt->fetch();
+
+$summaryStmt = $db->prepare("SELECT summary, positive_points, common_complaints, generated_at FROM review_summaries WHERE item_id = ? LIMIT 1");
+$summaryStmt->execute([$itemId]);
+$reviewSummary = $summaryStmt->fetch();
+$reviewCountStmt = $db->prepare("SELECT COUNT(*) FROM reviews WHERE item_id = ?");
+$reviewCountStmt->execute([$itemId]);
+$reviewCount = (int)$reviewCountStmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -108,6 +115,9 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
 .trust-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#999;margin-bottom:4px}
 .trust-value{font-size:13px;color:var(--text)}
 .trust-muted{color:#999;font-size:11px}
+.review-panel{background:#fff;border:1px solid var(--border);border-radius:3px;padding:18px;margin-bottom:18px}
+.review-head{display:flex;justify-content:space-between;gap:10px;align-items:center}.review-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#999}
+.review-summary{font-size:14px;line-height:1.7;margin-top:10px}.review-points{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.review-points div{background:#FDFAF5;border:1px solid var(--border);padding:10px;font-size:12px}.review-points b{display:block;margin-bottom:6px}.review-muted{color:#999;font-size:11px}@media(max-width:700px){.review-points{grid-template-columns:1fr}}
 @media(max-width:700px){.trust-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.main{grid-template-columns:1fr;padding:25px 18px}.mode-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -167,6 +177,16 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
         <div class="note">Latest post-return inspection: <?= $afterReport['condition_score'] !== null ? number_format((float)$afterReport['condition_score'],1).'/100' : 'recorded' ?> on <?= date('d M Y', strtotime($afterReport['created_at'])) ?>.</div>
       <?php endif; ?>
       <div class="note">Trust records shown here are vendor-entered operational records. They are not an independent certification.</div>
+    </div>
+
+    <div class="review-panel">
+      <div class="review-head"><div class="review-title">AI Review Summary</div><div class="review-muted"><?=$reviewCount?> customer review<?= $reviewCount===1?'':'s' ?></div></div>
+      <?php if ($reviewSummary): ?>
+        <div class="review-summary"><?=htmlspecialchars($reviewSummary['summary'])?></div>
+        <?php $positive=json_decode($reviewSummary['positive_points'],true)?:[];$complaints=json_decode($reviewSummary['common_complaints'],true)?:[]; ?>
+        <div class="review-points"><div><b>Positive points</b><?php if($positive):foreach($positive as $p):?><div>• <?=htmlspecialchars($p)?></div><?php endforeach;else:?><span class="review-muted">No positive themes recorded.</span><?php endif;?></div><div><b>Common complaints</b><?php if($complaints):foreach($complaints as $p):?><div>• <?=htmlspecialchars($p)?></div><?php endforeach;else:?><span class="review-muted">No common complaints recorded.</span><?php endif;?></div></div>
+        <div class="note">Generated <?=date('d M Y',strtotime($reviewSummary['generated_at']))?> from customer reviews. The summary is AI-generated and may miss context.</div>
+      <?php elseif($reviewCount): ?><div class="note">Reviews exist, but an AI summary has not been generated yet.</div><?php else: ?><div class="note">No customer reviews yet.</div><?php endif; ?>
     </div>
 
     <div class="mode-panel">
