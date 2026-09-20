@@ -7,19 +7,37 @@ $customerId=(int)$_SESSION['customer_id'];
 $customerName=$_SESSION['customer_name'];
 $message='';
 $error='';
+$uploadDir=dirname(__DIR__).'/uploads/sell/';
+$uploadWeb='../uploads/sell/';
+if(!is_dir($uploadDir)) @mkdir($uploadDir,0755,true);
 if($_SERVER['REQUEST_METHOD']==='POST'){
   $title=trim($_POST['title']??'');
   $description=trim($_POST['description']??'');
   $price=(float)($_POST['price']??0);
   $condition=$_POST['condition_label']??'good';
   $pickup=isset($_POST['pickup_option'])?1:0;
+  $imagePath=null;
+  if(isset($_FILES['image']) && $_FILES['image']['error']!==UPLOAD_ERR_NO_FILE){
+    if($_FILES['image']['error']!==UPLOAD_ERR_OK) $error='The image upload failed.';
+    elseif($_FILES['image']['size']>5*1024*1024) $error='Image must be 5MB or smaller.';
+    else{
+      $allowedMimes=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];
+      $mime=(new finfo(FILEINFO_MIME_TYPE))->file($_FILES['image']['tmp_name']);
+      if(!isset($allowedMimes[$mime])) $error='Use a JPG, PNG, or WEBP image.';
+      else{
+        $filename='sell_'.bin2hex(random_bytes(8)).'.'.$allowedMimes[$mime];
+        if(!move_uploaded_file($_FILES['image']['tmp_name'],$uploadDir.$filename)) $error='Could not save the image.';
+        else $imagePath=$filename;
+      }
+    }
+  }
   $allowed=['new','excellent','good','fair','needs_repair'];
   if($title==='') $error='Please enter a title.';
   elseif($price<=0) $error='Please enter a selling price greater than ₹0.';
   elseif(!in_array($condition,$allowed,true)) $error='Please select a valid condition.';
   else{
-    $st=$db->prepare("INSERT INTO seller_listings (seller_id,title,description,price,condition_label,status,pickup_option) VALUES (?,?,?,?,?,'pending_review',?)");
-    $st->execute([$customerId,$title,$description,$price,$condition,$pickup]);
+    $st=$db->prepare("INSERT INTO seller_listings (seller_id,title,description,price,condition_label,status,pickup_option,image_path) VALUES (?,?,?,?,?,'pending_review',?,?)");
+    $st->execute([$customerId,$title,$description,$price,$condition,$pickup,$imagePath]);
     header('Location: sell.php?created=1');exit;
   }
 }
@@ -36,14 +54,15 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <section class="hero"><h1>Sell Your Traditional Wear</h1><p>List an outfit you no longer need and offer it to another member of the O2O Tradition community. Listings enter review before they become publicly visible.</p></section>
 <?php if($message):?><div class="notice">✓ <?=htmlspecialchars($message)?></div><?php endif;?>
 <?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
-<form class="form" method="POST">
+<form class="form" method="POST" enctype="multipart/form-data">
 <div class="grid"><div class="row"><label>Item title *</label><input name="title" maxlength="150" required placeholder="e.g. Red Banarasi Silk Saree" value="<?=htmlspecialchars($_POST['title']??'')?>"></div>
 <div class="row"><label>Selling price (₹) *</label><input type="number" name="price" min="1" step="0.01" required placeholder="2500" value="<?=htmlspecialchars($_POST['price']??'')?>"></div></div>
+<div class="row"><label>Item photo</label><input type="file" name="image" accept="image/jpeg,image/png,image/webp"><small style="color:#777">Optional · JPG, PNG or WEBP · max 5MB</small></div>
 <div class="row"><label>Description</label><textarea name="description" maxlength="5000" placeholder="Describe the outfit, size, colour, usage, and anything a buyer should know."><?=htmlspecialchars($_POST['description']??'')?></textarea></div>
 <div class="grid"><div class="row"><label>Condition *</label><select name="condition_label"><?php foreach(['new','excellent','good','fair','needs_repair'] as $v):?><option value="<?=$v?>" <?=($_POST['condition_label']??'good')===$v?'selected':''?>><?=ucwords(str_replace('_',' ',$v))?></option><?php endforeach;?></select></div>
 <div class="row"><label>Fulfilment</label><label style="font-weight:normal"><input type="checkbox" name="pickup_option" checked> Local pickup available</label></div></div>
 <button class="button" type="submit">Submit Listing for Review</button>
 </form>
 <section class="listings"><h2 style="font:28px Georgia,serif">My Sell Listings</h2>
-<?php if($listings):foreach($listings as $l):?><div class="card"><div><div class="name"><?=htmlspecialchars($l['title'])?></div><div class="meta">₹<?=number_format($l['price'],0)?> · <?=htmlspecialchars(ucwords(str_replace('_',' ',$l['condition_label'])))?> · <?=date('d M Y',strtotime($l['created_at']))?></div></div><div class="status"><?=htmlspecialchars($statusLabels[$l['status']]??$l['status'])?></div></div><?php endforeach;else:?><div class="card"><div class="meta">You have not submitted any sell listings yet.</div></div><?php endif;?>
+<?php if($listings):foreach($listings as $l):?><div class="card"><div><?php if(!empty($l['image_path'])&&file_exists($uploadDir.$l['image_path'])):?><img src="<?=$uploadWeb.htmlspecialchars($l['image_path'])?>" style="width:70px;height:70px;object-fit:cover;float:left;margin-right:14px"><?php endif; ?><div class="name"><?=htmlspecialchars($l['title'])?></div><div class="meta">₹<?=number_format($l['price'],0)?> · <?=htmlspecialchars(ucwords(str_replace('_',' ',$l['condition_label'])))?> · <?=date('d M Y',strtotime($l['created_at']))?></div></div><div class="status"><?=htmlspecialchars($statusLabels[$l['status']]??$l['status'])?></div></div><?php endforeach;else:?><div class="card"><div class="meta">You have not submitted any sell listings yet.</div></div><?php endif;?>
 </section></main></body></html>
