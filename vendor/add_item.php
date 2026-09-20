@@ -16,9 +16,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $rentDay = (float)($_POST['rent_per_day'] ?? 0);
     $rentHour = (float)($_POST['rent_per_hour'] ?? 0);
     $late = (float)($_POST['late_charge_per_day'] ?? 0);
+    $sellForBuy = !empty($_POST['enable_buy']);
+    $buyPrice = (float)($_POST['buy_price'] ?? 0);
 
     if (!$name || $rentDay <= 0) {
         $error = 'Item name and daily rent are required.';
+    } elseif ($sellForBuy && $buyPrice <= 0) {
+        $error = 'Enter a valid purchase price when Buy is enabled.';
     } elseif (!in_array($quality, ['Excellent', 'Good', 'Fair'], true)) {
         $error = 'Invalid item quality.';
     } else {
@@ -71,6 +75,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 );
                 $modeStmt->execute([$itemId, $rentDay]);
 
+                if ($sellForBuy) {
+                    $buyStmt = $db->prepare(
+                        "INSERT INTO product_modes (item_id, mode, price, security_deposit, available)
+                         VALUES (?, 'buy', ?, 0, 1)
+                         ON DUPLICATE KEY UPDATE price = VALUES(price), available = 1"
+                    );
+                    $buyStmt->execute([$itemId, $buyPrice]);
+                }
+
                 $db->commit();
                 $success = "Item "{$name}" added successfully!";
             } catch (Throwable $e) {
@@ -108,7 +121,7 @@ h1{font:32px Georgia,serif}.subtitle{color:#777;font-size:13px;line-height:1.5;m
 .marketplace strong{display:block;margin-bottom:5px}.marketplace span{font-size:12px;color:#777}
 .mode-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
 .mode{padding:8px 11px;border:1px solid #C9A84C;background:#FFF9E9;font-size:11px}
-.mode.disabled{border-color:#ddd;background:#f7f7f7;color:#999}
+.mode.disabled{border-color:#ddd;background:#f7f7f7;color:#999}.buy-fields{margin-top:12px;padding-top:12px;border-top:1px solid #E8E0D0}.buy-fields label{font-size:11px;color:#777}.buy-fields input{margin-top:6px;padding:9px;border:1px solid #ddd;width:220px;box-sizing:border-box}
 .btn{padding:13px 22px;background:#0D4F4F;color:#fff;border:0;cursor:pointer}
 .error{padding:10px;background:#FEF2F2;color:#991B1B}.success{padding:10px;background:#F0FDF4;color:#166534}
 @media(max-width:650px){.grid{grid-template-columns:1fr}}
@@ -121,7 +134,7 @@ h1{font:32px Georgia,serif}.subtitle{color:#777;font-size:13px;line-height:1.5;m
 </div>
 <div class="main">
   <h1>Add New Item</h1>
-  <div class="subtitle">Add traditional wear to your store catalogue. Rent is the active marketplace mode in this development step.</div>
+  <div class="subtitle">Add traditional wear to your store catalogue. Rent remains available, and Buy can now be enabled for individual items.</div>
   <?php if ($error): ?><div class="error"><?= htmlspecialchars($error) ?></div><?php endif; ?>
   <?php if ($success): ?><div class="success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
 
@@ -140,10 +153,11 @@ h1{font:32px Georgia,serif}.subtitle{color:#777;font-size:13px;line-height:1.5;m
     </div>
     <div class="marketplace">
       <strong>Marketplace mode</strong>
-      <span>This item will be added to Rent automatically. Other modes will be enabled after their complete workflows are implemented.</span>
+      <span>Rent is enabled automatically. You can also enable Buy and set a purchase price. Seller and Swap workflows remain in development.</span>
       <div class="mode-row">
         <div class="mode">👘 Rent · Active</div>
-        <div class="mode disabled">🛍 Buy · Coming next</div>
+        <label class="mode"><input type="checkbox" name="enable_buy" value="1" id="enable_buy"> 🛍 Buy · Enable</label>
+        <div class="buy-fields" id="buy_fields" style="display:none"><label>Purchase Price ₹<input type="number" min="0.01" step="0.01" name="buy_price" id="buy_price"></label></div>
         <div class="mode disabled">💰 Sell · Coming next</div>
         <div class="mode disabled">♻ Swap · Coming next</div>
       </div>
@@ -151,5 +165,10 @@ h1{font:32px Georgia,serif}.subtitle{color:#777;font-size:13px;line-height:1.5;m
     <button class="btn" type="submit">Add Item</button>
   </form>
 </div>
+<script>
+const buy=document.getElementById('enable_buy'), fields=document.getElementById('buy_fields'), price=document.getElementById('buy_price');
+function syncBuy(){fields.style.display=buy.checked?'block':'none';price.required=buy.checked;}
+buy.addEventListener('change',syncBuy); syncBuy();
+</script>
 </body>
 </html>
