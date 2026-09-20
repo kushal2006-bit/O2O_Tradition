@@ -54,7 +54,24 @@ if (empty($vendors)) {
 }
 
 $items = [];
-if ($mode === 'rent' || $mode === 'all') {
+$itemType = 'rent';
+if ($mode === 'buy') {
+    $itemType = 'buy';
+    $itemSql = "SELECT i.*, v.store_name, v.pincode AS store_pincode, v.address AS store_address,
+        pm.price AS buy_price
+        FROM items i
+        JOIN vendors v ON i.vendor_id = v.id
+        JOIN product_modes pm ON pm.item_id = i.id AND pm.mode='buy' AND pm.available=1
+        WHERE i.available=1";
+    $itemParams = [];
+    if ($search) {
+        $itemSql .= " AND (i.name LIKE ? OR i.description LIKE ? OR i.category LIKE ?)";
+        $itemParams = ["%$search%", "%$search%", "%$search%"];
+    }
+    $itemStmt = $db->prepare($itemSql . " ORDER BY i.name");
+    $itemStmt->execute($itemParams);
+    $items = $itemStmt->fetchAll();
+} elseif ($mode === 'rent' || $mode === 'all') {
     $itemSql = "SELECT i.*, v.store_name, v.pincode AS store_pincode, v.address AS store_address
         FROM items i
         JOIN vendors v ON i.vendor_id = v.id
@@ -76,7 +93,7 @@ if ($mode === 'rent' || $mode === 'all') {
 $modeDescriptions = [
     'all'  => ['title' => 'Explore Traditional Wear', 'subtitle' => 'Rent today and discover the Buy, Sell & Swap marketplace as each mode launches.'],
     'rent' => ['title' => 'Rent for Your Occasion', 'subtitle' => 'Browse the existing rental catalogue and book attire for your dates.'],
-    'buy'  => ['title' => 'Buy Traditional Wear', 'subtitle' => 'Buy is coming next. The marketplace foundation is ready; checkout is not live yet.'],
+    'buy'  => ['title' => 'Buy Traditional Wear', 'subtitle' => 'Browse items currently listed for purchase and place a Cash on Delivery order.'],
     'sell' => ['title' => 'Sell Your Traditional Wear', 'subtitle' => 'Seller listings are part of the marketplace foundation and will be activated next.'],
     'swap' => ['title' => 'Swap with the Community', 'subtitle' => 'Swap matching and requests are planned for the next marketplace step.'],
 ];
@@ -239,7 +256,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
 <nav class="mode-bar" aria-label="Marketplace modes">
   <a class="mode <?= $mode === 'all' ? 'active' : '' ?>" href="home.php"><strong>✦ Explore</strong><span>Marketplace</span></a>
   <a class="mode <?= $mode === 'rent' ? 'active' : '' ?>" href="?mode=rent"><strong>👘 Rent</strong><span>Available now</span></a>
-  <a class="mode <?= $mode === 'buy' ? 'active' : '' ?>" href="?mode=buy"><strong>🛍 Buy</strong><span>Coming next</span></a>
+  <a class="mode <?= $mode === 'buy' ? 'active' : '' ?>" href="?mode=buy"><strong>🛍 Buy</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="?mode=sell"><strong>💰 Sell</strong><span>Coming next</span></a>
   <a class="mode <?= $mode === 'swap' ? 'active' : '' ?>" href="?mode=swap"><strong>♻ Swap</strong><span>Coming next</span></a>
 </nav>
@@ -253,7 +270,38 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
     <?php if ($mode !== 'rent' && $mode !== 'all'): ?><div class="coming">Marketplace mode coming next</div><?php endif; ?>
   </section>
 
-  <?php if (($mode === 'rent' || $mode === 'all') && !empty($items)): ?>
+  <?php if ($mode === 'buy'): ?>
+  <section>
+    <div class="section-head">
+      <div class="section-title"><?= $search ? 'Buy Results for “'.htmlspecialchars($search).'”' : '🛍 Buy Catalogue' ?></div>
+      <div class="section-note"><?= count($items) ?> item(s) available to buy</div>
+    </div>
+    <?php if (!empty($items)): ?>
+    <div class="items-grid">
+      <?php foreach ($items as $item): ?>
+      <a href="item.php?id=<?= (int)$item['id'] ?>" class="item-card">
+        <div class="item-img">
+          <?php if ($item['image_path'] && file_exists('../uploads/items/' . $item['image_path'])): ?>
+            <img src="../uploads/items/<?= htmlspecialchars($item['image_path']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+          <?php else: ?>🛍<?php endif; ?>
+        </div>
+        <div class="item-body">
+          <div class="item-name"><?= htmlspecialchars($item['name']) ?></div>
+          <div class="item-store"><?= htmlspecialchars($item['store_name']) ?></div>
+          <div class="item-desc"><?= htmlspecialchars($item['description']) ?></div>
+          <div class="item-meta">
+            <div class="item-price">₹<?= number_format((float)$item['buy_price'], 0) ?></div>
+            <div class="item-quality <?= htmlspecialchars($item['quality']) ?>"><?= htmlspecialchars($item['quality']) ?></div>
+          </div>
+        </div>
+      </a>
+      <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+    <div class="empty-state"><div class="icon">🛍</div><h3>No items are currently listed for Buy</h3><p>Try another search or check back when vendors add purchase inventory.</p></div>
+    <?php endif; ?>
+  </section>
+  <?php elseif (($mode === 'rent' || $mode === 'all') && !empty($items)): ?>
   <section>
     <div class="section-head">
       <div class="section-title">Results for “<?= htmlspecialchars($search) ?>”</div>
