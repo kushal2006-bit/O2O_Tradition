@@ -189,6 +189,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
       <?php elseif($reviewCount): ?><div class="note">Reviews exist, but an AI summary has not been generated yet.</div><?php else: ?><div class="note">No customer reviews yet.</div><?php endif; ?>
     </div>
 
+    <a href="fit.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent" style="margin-bottom:12px;background:#FFF9E9;color:#7A5600;border:1px solid #C9A84C">📏 Check Size & Fit</a>
+
     <div class="mode-panel">
       <div class="mode-heading">Marketplace availability</div>
       <div class="mode-grid">
