@@ -336,12 +336,16 @@ CREATE TABLE IF NOT EXISTS review_summaries (
 CREATE TABLE IF NOT EXISTS condition_ai_reports (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,
     item_id INT NOT NULL,
+    vendor_id INT NULL,
     image_path VARCHAR(255) NOT NULL,
     detected_issues JSON,
     condition_assessment VARCHAR(255),
     confidence DECIMAL(5,4),
+    status ENUM('queued','processing','completed','failed') DEFAULT 'queued',
+    notes TEXT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS admin_actions (
