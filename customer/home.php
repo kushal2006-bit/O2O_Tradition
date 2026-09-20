@@ -257,7 +257,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
   <a class="mode <?= $mode === 'all' ? 'active' : '' ?>" href="home.php"><strong>✦ Explore</strong><span>Marketplace</span></a>
   <a class="mode <?= $mode === 'rent' ? 'active' : '' ?>" href="?mode=rent"><strong>👘 Rent</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'buy' ? 'active' : '' ?>" href="?mode=buy"><strong>🛍 Buy</strong><span>Available now</span></a>
-  <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="?mode=sell"><strong>💰 Sell</strong><span>Coming next</span></a>
+  <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="sell.php"><strong>💰 Sell</strong><span>List an item</span></a>
   <a class="mode <?= $mode === 'swap' ? 'active' : '' ?>" href="?mode=swap"><strong>♻ Swap</strong><span>Coming next</span></a>
 </nav>
 
