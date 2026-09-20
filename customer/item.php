@@ -81,7 +81,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
 .late-box{grid-column:1/-1;background:#FEF2F2;border-radius:2px;padding:12px;display:flex;align-items:center;gap:8px}
 .late-text{font-size:13px}.late-text strong{color:#DC2626}
 .btn-rent{display:block;width:100%;padding:15px;background:var(--dark);color:var(--gold);border:none;border-radius:2px;font-family:'Jost',sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;text-decoration:none;text-align:center}
-.btn-rent:hover{background:var(--crimson)}
+.btn-rent:hover{background:var(--crimson)}.btn-buy{display:block;width:100%;padding:15px;background:var(--gold);color:var(--dark);border:none;border-radius:2px;font-family:'Jost',sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;text-decoration:none;text-align:center;margin-top:10px}.btn-buy:hover{background:var(--gold-light)}
 .note{font-size:11px;color:#999;line-height:1.6;margin-top:10px}
 @media(max-width:700px){.main{grid-template-columns:1fr;padding:25px 18px}.mode-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
@@ -122,6 +122,15 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
       <div class="note">Buy, Sell and Swap are shown only when their marketplace workflows are activated. They are not represented as functional until the backend is ready.</div>
     </div>
 
+    <?php $buyMode = $modeMap['buy'] ?? null; ?>
+    <?php if ($buyMode && (int)$buyMode['available'] === 1): ?>
+    <div class="price-section">
+      <div class="price-label">Purchase Price</div>
+      <div class="price-val">₹<?= number_format((float)$buyMode['price'],0) ?></div>
+      <div class="note">Single-item purchase. Delivery address and Cash on Delivery are collected at checkout.</div>
+    </div>
+    <?php endif; ?>
+
     <div class="price-section">
       <div class="price-grid">
         <div><div class="price-label">Rent per Day</div><div class="price-val">₹<?= number_format((float)$rentMode['price'],0) ?></div></div>
@@ -130,7 +139,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
       </div>
     </div>
 
-    <a href="order.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent">Rent This Item</a>
+    <?php if ($buyMode && (int)$buyMode['available'] === 1): ?><a href="buy.php?item_id=<?= (int)$item['id'] ?>" class="btn-buy">Buy This Item</a><?php endif; ?>
+    <?php if ($rentMode && (int)$rentMode['available'] === 1): ?><a href="order.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent">Rent This Item</a><?php endif; ?>
   </div>
 </div>
 </body>
