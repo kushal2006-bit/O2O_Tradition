@@ -51,6 +51,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       }
     }
   }
+  }
 }
 $itemsStmt=$db->prepare("SELECT id,name FROM items WHERE vendor_id=? ORDER BY name");$itemsStmt->execute([$vendorId]);$items=$itemsStmt->fetchAll();
 $reportsStmt=$db->prepare("SELECT r.*,i.name item_name FROM condition_ai_reports r JOIN items i ON i.id=r.item_id WHERE r.vendor_id=? ORDER BY r.created_at DESC");$reportsStmt->execute([$vendorId]);$reports=$reportsStmt->fetchAll();
