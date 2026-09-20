@@ -23,8 +23,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='request'){
     $post=['model'=>'gpt-image-2','image[]'=>new CURLFile($avatarImage),'image[]'=>new CURLFile($itemImage),'prompt'=>$prompt,'size'=>'1024x1024','output_format'=>'webp','quality'=>'medium'];
     // PHP associative arrays cannot contain duplicate keys, so use indexed multipart names through curl_file_create.
     $post=[];$post['model']='gpt-image-2';$post['prompt']=$prompt;$post['size']='1024x1024';$post['output_format']='webp';$post['quality']='medium';
-    $post['image[]']=new CURLFile($avatarImage,'image/jpeg','avatar.jpg');
-    $post['image[1]']=new CURLFile($itemImage,'image/jpeg','item.jpg');
+    $post['image']=new CURLFile($avatarImage,'image/jpeg','avatar.jpg');
+    $post['image[]']=new CURLFile($itemImage,'image/jpeg','item.jpg');
     curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$key],CURLOPT_POSTFIELDS=>$post,CURLOPT_TIMEOUT=>120]);
     $raw=curl_exec($ch);$http=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
     $resp=$raw?json_decode($raw,true):null;$b64=$resp['data'][0]['b64_json']??'';
