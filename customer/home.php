@@ -391,7 +391,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
       <h2>Build your complete traditional look</h2>
       <p>AI Stylist, complete-look bundles, avatar styling, size guidance and virtual try-on are planned as the next AI layer. This entry point is intentionally a preview until those services are connected.</p>
     </div>
-    <span class="ai-button">AI Stylist · Coming Next</span>
+    <a href="stylist.php" class="ai-button">Open AI Stylist</a>
   </section>
 
   <div class="footer-note">O2O Tradition is being built in stages. Rent, Buy, Sell and community Swap flows are now part of this development baseline; AI features remain planned.</div>
