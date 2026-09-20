@@ -60,6 +60,7 @@ $sanitization = $sanStmt->fetch();
 $summaryStmt = $db->prepare("SELECT summary, positive_points, common_complaints, generated_at FROM review_summaries WHERE item_id = ? LIMIT 1");
 $summaryStmt->execute([$itemId]);
 $reviewSummary = $summaryStmt->fetch();
+$wishStmt=$db->prepare("SELECT COUNT(*) FROM wishlists WHERE customer_id=? AND item_id=?");$wishStmt->execute([(int)$_SESSION['customer_id'],$itemId]);$isSaved=(int)$wishStmt->fetchColumn()>0;
 $reviewCountStmt = $db->prepare("SELECT COUNT(*) FROM reviews WHERE item_id = ?");
 $reviewCountStmt->execute([$itemId]);
 $reviewCount = (int)$reviewCountStmt->fetchColumn();
@@ -188,6 +189,8 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
         <div class="note">Generated <?=date('d M Y',strtotime($reviewSummary['generated_at']))?> from customer reviews. The summary is AI-generated and may miss context.</div>
       <?php elseif($reviewCount): ?><div class="note">Reviews exist, but an AI summary has not been generated yet.</div><?php else: ?><div class="note">No customer reviews yet.</div><?php endif; ?>
     </div>
+
+    <form method="POST" action="wishlist.php" style="margin-bottom:12px"><input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>"><input type="hidden" name="action" value="<?= $isSaved ? 'remove' : 'add' ?>"><button class="btn-rent" type="submit" style="background:#FFF9E9;color:#7A5600;border:1px solid #C9A84C"><?= $isSaved ? '♥ Remove from Saved Items' : '♡ Save This Item' ?></button></form>
 
     <a href="fit.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent" style="margin-bottom:12px;background:#FFF9E9;color:#7A5600;border:1px solid #C9A84C">📏 Check Size & Fit</a>
     <a href="tryon.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent" style="margin-bottom:12px;background:#21170B;color:#C9A84C">✨ Virtual Try-On</a>
