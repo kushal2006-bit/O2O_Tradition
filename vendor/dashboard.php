@@ -1,8 +1,9 @@
 <?php
 session_start();require_once '../shared/config.php';requireLogin('vendor','login.php');$db=getDB();$vendorId=$_SESSION['vendor_id'];$storeName=$_SESSION['vendor_name'];
-if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['action'])){$orderId=intval($_POST['order_id']??0);if($_POST['action']==='confirm'){$db->prepare("UPDATE orders SET status='in_progress' WHERE id=? AND vendor_id=?")->execute([$orderId,$vendorId]);}elseif($_POST['action']==='complete'){$actual=$_POST['actual_return_date']??date('Y-m-d');$st=$db->prepare("SELECT o.*,i.late_charge_per_day FROM orders o JOIN items i ON o.item_id=i.id WHERE o.id=? AND o.vendor_id=?");$st->execute([$orderId,$vendorId]);$o=$st->fetch();if($o){$lateDays=max(0,(int)ceil((strtotime($actual)-strtotime($o['return_date']))/86400));$lateCharge=$lateDays*$o['late_charge_per_day'];$db->beginTransaction();try{
+function addCustomerNotification(PDO $db,int $customerId,string $type,string $title,string $message):void{$db->prepare("INSERT INTO notifications(customer_id,type,title,message) VALUES(?,?,?,?)")->execute([$customerId,$type,$title,$message]);}
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['action'])){$orderId=intval($_POST['order_id']??0);if($_POST['action']==='confirm'){$q=$db->prepare("SELECT customer_id,item_id FROM orders WHERE id=? AND vendor_id=?");$q->execute([$orderId,$vendorId]);$r=$q->fetch();$db->prepare("UPDATE orders SET status='in_progress' WHERE id=? AND vendor_id=?")->execute([$orderId,$vendorId]);if($r)addCustomerNotification($db,(int)$r['customer_id'],'rental_status','Rental is active','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' is confirmed and now active.');}elseif($_POST['action']==='complete'){$actual=$_POST['actual_return_date']??date('Y-m-d');$st=$db->prepare("SELECT o.*,i.late_charge_per_day FROM orders o JOIN items i ON o.item_id=i.id WHERE o.id=? AND o.vendor_id=?");$st->execute([$orderId,$vendorId]);$o=$st->fetch();if($o){$lateDays=max(0,(int)ceil((strtotime($actual)-strtotime($o['return_date']))/86400));$lateCharge=$lateDays*$o['late_charge_per_day'];$db->beginTransaction();try{
   $db->prepare("UPDATE orders SET status='completed',actual_return_date=?,late_days=?,late_charges=? WHERE id=? AND vendor_id=?")->execute([$actual,$lateDays,$lateCharge,$orderId,$vendorId]);
-  $db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status) VALUES (?,?,?,'pending')")->execute([$o['item_id'],$orderId,$vendorId]);
+  $db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status) VALUES (?,?,?,'pending')")->execute([$o['item_id'],$orderId,$vendorId]);addCustomerNotification($db,(int)$o['customer_id'],'rental_status','Rental returned','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' has been marked returned. Inspection and sanitization are now pending.');
   $db->commit();
 }catch(Throwable $e){$db->rollBack();}}}header('Location: dashboard.php');exit;}
 $buyAction=$_POST['buy_action']??null;
@@ -10,7 +11,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){
   $purchaseId=intval($_POST['purchase_id']??0);
   $allowed=['packed','shipped','delivered','cancelled'];
   if($purchaseId>0&&in_array($buyAction,$allowed,true)){
-    $db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=?")->execute([$buyAction,$purchaseId,$vendorId]);
+    $q=$db->prepare("SELECT customer_id FROM purchase_orders WHERE id=? AND vendor_id=?");$q->execute([$purchaseId,$vendorId]);$buyer=$q->fetch();$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=?")->execute([$buyAction,$purchaseId,$vendorId]);if($buyer){$labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];$label=$labels[$buyAction]??$buyAction;addCustomerNotification($db,(int)$buyer['customer_id'],'buy_status','Buy order updated','Your buy order #'.str_pad($purchaseId,6,'0',STR_PAD_LEFT).' is now '.$label.'.');}
   }
   header('Location: dashboard.php');exit;
 }
