@@ -232,25 +232,29 @@ CREATE TABLE IF NOT EXISTS condition_reports (
     id INT AUTO_INCREMENT PRIMARY KEY,
     item_id INT NOT NULL,
     rental_order_id INT NULL,
+    created_by_vendor_id INT NULL,
     inspection_type ENUM('before_rental','after_return','manual') NOT NULL,
     condition_score DECIMAL(5,2),
     notes TEXT,
     image_path VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (rental_order_id) REFERENCES orders(id) ON DELETE SET NULL
+    FOREIGN KEY (rental_order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by_vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS sanitization_records (
     id INT AUTO_INCREMENT PRIMARY KEY,
     item_id INT NOT NULL,
     rental_order_id INT NULL,
+    created_by_vendor_id INT NULL,
     status ENUM('pending','in_progress','completed') DEFAULT 'pending',
     completed_at TIMESTAMP NULL,
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (rental_order_id) REFERENCES orders(id) ON DELETE SET NULL
+    FOREIGN KEY (rental_order_id) REFERENCES orders(id) ON DELETE SET NULL,
+    FOREIGN KEY (created_by_vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS user_style_profiles (
