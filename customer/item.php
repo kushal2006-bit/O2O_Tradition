@@ -190,6 +190,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
     </div>
 
     <a href="fit.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent" style="margin-bottom:12px;background:#FFF9E9;color:#7A5600;border:1px solid #C9A84C">📏 Check Size & Fit</a>
+    <a href="tryon.php?item_id=<?= (int)$item['id'] ?>" class="btn-rent" style="margin-bottom:12px;background:#21170B;color:#C9A84C">✨ Virtual Try-On</a>
 
     <div class="mode-panel">
       <div class="mode-heading">Marketplace availability</div>
