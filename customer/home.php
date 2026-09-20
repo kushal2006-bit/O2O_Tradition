@@ -22,7 +22,9 @@ if (!in_array($mode, $allowedModes, true)) {
  * new marketplace product-mode tables are wired into the next steps.
  */
 $vendorSql = "SELECT v.*,
-    (SELECT COUNT(*) FROM items i WHERE i.vendor_id = v.id AND i.available = 1) AS item_count
+    (SELECT COUNT(*) FROM items i WHERE i.vendor_id = v.id AND i.available = 1
+        AND (NOT EXISTS (SELECT 1 FROM product_modes pm0 WHERE pm0.item_id = i.id)
+             OR EXISTS (SELECT 1 FROM product_modes pm1 WHERE pm1.item_id = i.id AND pm1.mode = 'rent' AND pm1.available = 1))) AS item_count
     FROM vendors v WHERE 1=1";
 $vendorParams = [];
 
@@ -37,7 +39,9 @@ $vendors = $vendorStmt->fetchAll();
 
 if (empty($vendors)) {
     $allStmt = $db->query("SELECT v.*,
-        (SELECT COUNT(*) FROM items i WHERE i.vendor_id = v.id AND i.available = 1) AS item_count
+        (SELECT COUNT(*) FROM items i WHERE i.vendor_id = v.id AND i.available = 1
+        AND (NOT EXISTS (SELECT 1 FROM product_modes pm0 WHERE pm0.item_id = i.id)
+             OR EXISTS (SELECT 1 FROM product_modes pm1 WHERE pm1.item_id = i.id AND pm1.mode = 'rent' AND pm1.available = 1))) AS item_count
         FROM vendors v ORDER BY v.store_name");
     $vendors = $allStmt->fetchAll();
     $nearbyMsg = $pincode
@@ -50,13 +54,19 @@ if (empty($vendors)) {
 }
 
 $items = [];
-if ($search) {
+if ($mode === 'rent' || $mode === 'all') {
     $itemSql = "SELECT i.*, v.store_name, v.pincode AS store_pincode, v.address AS store_address
         FROM items i
         JOIN vendors v ON i.vendor_id = v.id
         WHERE i.available = 1
-          AND (i.name LIKE ? OR i.description LIKE ? OR i.category LIKE ?)";
-    $itemParams = ["%$search%", "%$search%", "%$search%"];
+          AND (NOT EXISTS (SELECT 1 FROM product_modes pm0 WHERE pm0.item_id = i.id)
+               OR EXISTS (SELECT 1 FROM product_modes pm1 WHERE pm1.item_id = i.id AND pm1.mode = 'rent' AND pm1.available = 1))";
+    $itemParams = [];
+
+    if ($search) {
+        $itemSql .= " AND (i.name LIKE ? OR i.description LIKE ? OR i.category LIKE ?)";
+        $itemParams = ["%$search%", "%$search%", "%$search%"];
+    }
 
     $itemStmt = $db->prepare($itemSql . " ORDER BY i.name");
     $itemStmt->execute($itemParams);
@@ -243,11 +253,11 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
     <?php if ($mode !== 'rent' && $mode !== 'all'): ?><div class="coming">Marketplace mode coming next</div><?php endif; ?>
   </section>
 
-  <?php if ($search && !empty($items)): ?>
+  <?php if (($mode === 'rent' || $mode === 'all') && !empty($items)): ?>
   <section>
     <div class="section-head">
       <div class="section-title">Results for “<?= htmlspecialchars($search) ?>”</div>
-      <div class="section-note"><?= count($items) ?> rental item(s) found</div>
+      <div class="section-note"><?= count($items) ?> rental item(s) available</div>
     </div>
     <div class="items-grid">
       <?php foreach ($items as $item): ?>
@@ -270,8 +280,39 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
       <?php endforeach; ?>
     </div>
   </section>
-  <?php elseif ($search): ?>
+  <?php elseif (($mode === 'rent' || $mode === 'all') && $search): ?>
   <div class="empty-state"><div class="icon">🔍</div><h3>No rental items found</h3><p>Try another term such as “saree”, “sherwani”, or “lehenga”.</p></div>
+  <?php elseif ($mode === 'rent' || $mode === 'all'): ?>
+  <section>
+    <div class="section-head">
+      <div class="section-title">👘 Rental Catalogue</div>
+      <div class="section-note"><?= count($items) ?> item(s) currently available</div>
+    </div>
+    <?php if (!empty($items)): ?>
+    <div class="items-grid">
+      <?php foreach ($items as $item): ?>
+      <a href="item.php?id=<?= (int)$item['id'] ?>" class="item-card">
+        <div class="item-img">
+          <?php if ($item['image_path'] && file_exists('../uploads/items/' . $item['image_path'])): ?>
+            <img src="../uploads/items/<?= htmlspecialchars($item['image_path']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+          <?php else: ?>👘<?php endif; ?>
+        </div>
+        <div class="item-body">
+          <div class="item-name"><?= htmlspecialchars($item['name']) ?></div>
+          <div class="item-store"><?= htmlspecialchars($item['store_name']) ?></div>
+          <div class="item-desc"><?= htmlspecialchars($item['description']) ?></div>
+          <div class="item-meta">
+            <div class="item-price">₹<?= number_format($item['rent_per_day'], 0) ?>/day</div>
+            <div class="item-quality <?= htmlspecialchars($item['quality']) ?>"><?= htmlspecialchars($item['quality']) ?></div>
+          </div>
+        </div>
+      </a>
+      <?php endforeach; ?>
+    </div>
+    <?php else: ?>
+    <div class="empty-state"><div class="icon">👘</div><h3>No rental items are currently available</h3><p>New rental inventory will appear here when vendors add it.</p></div>
+    <?php endif; ?>
+  </section>
   <?php endif; ?>
 
   <section>
