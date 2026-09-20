@@ -132,9 +132,12 @@ CREATE TABLE IF NOT EXISTS swap_listings (
     id INT AUTO_INCREMENT PRIMARY KEY,
     owner_id INT NOT NULL,
     item_id INT NULL,
+    title VARCHAR(150) NOT NULL,
     description TEXT,
     preferred_category VARCHAR(100),
     preferred_item VARCHAR(150),
+    condition_label ENUM('new','excellent','good','fair','needs_repair') DEFAULT 'good',
+    image_path VARCHAR(255),
     location VARCHAR(255),
     status ENUM('active','matched','completed','cancelled') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -148,11 +151,13 @@ CREATE TABLE IF NOT EXISTS swap_requests (
     requester_id INT NOT NULL,
     offered_item_id INT NULL,
     message TEXT,
+    offered_swap_listing_id INT NULL,
     status ENUM('pending','accepted','rejected','cancelled','completed') DEFAULT 'pending',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (swap_listing_id) REFERENCES swap_listings(id) ON DELETE CASCADE,
     FOREIGN KEY (requester_id) REFERENCES customers(id) ON DELETE CASCADE,
-    FOREIGN KEY (offered_item_id) REFERENCES items(id) ON DELETE SET NULL
+    FOREIGN KEY (offered_item_id) REFERENCES items(id) ON DELETE SET NULL,
+    FOREIGN KEY (offered_swap_listing_id) REFERENCES swap_listings(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS reviews (
