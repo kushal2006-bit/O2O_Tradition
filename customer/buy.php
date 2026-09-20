@@ -64,6 +64,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $disable = $db->prepare("UPDATE product_modes SET available=0 WHERE item_id=? AND mode='buy'");
             $disable->execute([$itemId]);
 
+            // This prototype treats each catalogue item as one physical unit.
+            // Once purchased, it must no longer be rentable or purchasable.
+            $sold = $db->prepare("UPDATE items SET available=0 WHERE id=?");
+            $sold->execute([$itemId]);
+
             $db->commit();
             header('Location: buy_success.php?id=' . $orderId);
             exit;
