@@ -40,6 +40,22 @@ $rentMode = $modeMap['rent'] ?? [
     'security_deposit' => 0,
     'available' => $item['available']
 ];
+
+$verifyStmt = $db->prepare("SELECT COUNT(*) FROM vendor_verifications WHERE vendor_id = ? AND status = 'verified'");
+$verifyStmt->execute([$item['vid']]);
+$vendorVerified = (int)$verifyStmt->fetchColumn() > 0;
+
+$beforeStmt = $db->prepare("SELECT condition_score, notes, created_at FROM condition_reports WHERE item_id = ? AND inspection_type = 'before_rental' ORDER BY created_at DESC LIMIT 1");
+$beforeStmt->execute([$itemId]);
+$beforeReport = $beforeStmt->fetch();
+
+$afterStmt = $db->prepare("SELECT condition_score, notes, created_at FROM condition_reports WHERE item_id = ? AND inspection_type = 'after_return' ORDER BY created_at DESC LIMIT 1");
+$afterStmt->execute([$itemId]);
+$afterReport = $afterStmt->fetch();
+
+$sanStmt = $db->prepare("SELECT status, completed_at, notes, created_at FROM sanitization_records WHERE item_id = ? ORDER BY created_at DESC LIMIT 1");
+$sanStmt->execute([$itemId]);
+$sanitization = $sanStmt->fetch();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -83,6 +99,16 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
 .btn-rent{display:block;width:100%;padding:15px;background:var(--dark);color:var(--gold);border:none;border-radius:2px;font-family:'Jost',sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;text-decoration:none;text-align:center}
 .btn-rent:hover{background:var(--crimson)}.btn-buy{display:block;width:100%;padding:15px;background:var(--gold);color:var(--dark);border:none;border-radius:2px;font-family:'Jost',sans-serif;font-size:13px;letter-spacing:3px;text-transform:uppercase;cursor:pointer;text-decoration:none;text-align:center;margin-top:10px}.btn-buy:hover{background:var(--gold-light)}
 .note{font-size:11px;color:#999;line-height:1.6;margin-top:10px}
+.trust-panel{background:#fff;border:1px solid var(--border);border-radius:3px;padding:18px;margin-bottom:18px}
+.trust-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+.trust-title{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:#999}
+.trust-badge{display:inline-block;padding:5px 9px;border-radius:15px;font-size:11px;background:#D1FAE5;color:#065F46}
+.trust-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.trust-box{border:1px solid var(--border);background:#FDFAF5;padding:11px}
+.trust-label{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:#999;margin-bottom:4px}
+.trust-value{font-size:13px;color:var(--text)}
+.trust-muted{color:#999;font-size:11px}
+@media(max-width:700px){.trust-grid{grid-template-columns:1fr}}
 @media(max-width:700px){.main{grid-template-columns:1fr;padding:25px 18px}.mode-grid{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
@@ -107,6 +133,41 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
     <div class="item-store"><a href="store.php?id=<?= (int)$item['vid'] ?>">🏬 <?= htmlspecialchars($item['store_name']) ?></a> | 📍 <?= htmlspecialchars($item['store_address']) ?></div>
     <span class="quality-badge <?= htmlspecialchars($item['quality']) ?>"><?= htmlspecialchars($item['quality']) ?> Condition</span>
     <div class="item-desc"><?= htmlspecialchars($item['description']) ?></div>
+
+    <div class="trust-panel">
+      <div class="trust-head">
+        <div class="trust-title">Trust Protocol</div>
+        <?php if ($vendorVerified): ?><span class="trust-badge">✓ Verified Vendor</span><?php endif; ?>
+      </div>
+      <div class="trust-grid">
+        <div class="trust-box">
+          <div class="trust-label">Vendor</div>
+          <div class="trust-value"><?= $vendorVerified ? 'Verified' : 'Verification pending' ?></div>
+        </div>
+        <div class="trust-box">
+          <div class="trust-label">Before-rental inspection</div>
+          <?php if ($beforeReport): ?>
+            <div class="trust-value"><?= $beforeReport['condition_score'] !== null ? number_format((float)$beforeReport['condition_score'],1).'/100' : 'Recorded' ?></div>
+            <div class="trust-muted"><?= date('d M Y', strtotime($beforeReport['created_at'])) ?></div>
+          <?php else: ?>
+            <div class="trust-value">Not recorded</div>
+          <?php endif; ?>
+        </div>
+        <div class="trust-box">
+          <div class="trust-label">Sanitization</div>
+          <?php if ($sanitization): ?>
+            <div class="trust-value"><?= htmlspecialchars(ucwords(str_replace('_',' ',$sanitization['status']))) ?></div>
+            <?php if ($sanitization['completed_at']): ?><div class="trust-muted">Completed <?= date('d M Y', strtotime($sanitization['completed_at'])) ?></div><?php endif; ?>
+          <?php else: ?>
+            <div class="trust-value">No record yet</div>
+          <?php endif; ?>
+        </div>
+      </div>
+      <?php if ($afterReport): ?>
+        <div class="note">Latest post-return inspection: <?= $afterReport['condition_score'] !== null ? number_format((float)$afterReport['condition_score'],1).'/100' : 'recorded' ?> on <?= date('d M Y', strtotime($afterReport['created_at'])) ?>.</div>
+      <?php endif; ?>
+      <div class="note">Trust records shown here are vendor-entered operational records. They are not an independent certification.</div>
+    </div>
 
     <div class="mode-panel">
       <div class="mode-heading">Marketplace availability</div>
