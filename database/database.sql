@@ -122,6 +122,7 @@ CREATE TABLE IF NOT EXISTS seller_listings (
     condition_label ENUM('new','excellent','good','fair','needs_repair') DEFAULT 'good',
     status ENUM('draft','pending_review','active','sold','cancelled') DEFAULT 'draft',
     pickup_option TINYINT(1) DEFAULT 1,
+    image_path VARCHAR(255),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (seller_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
