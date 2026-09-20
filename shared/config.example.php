@@ -8,6 +8,10 @@ define('DB_USER', getenv('O2O_DB_USER') ?: 'root');
 define('DB_PASS', getenv('O2O_DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
 
+// AI provider configuration (never commit a real API key).
+// Set OPENAI_API_KEY in the server environment when enabling AI analysis.
+define('O2O_AI_MODEL', getenv('O2O_AI_MODEL') ?: 'gpt-5.6-luna');
+
 function getDB() {
     static $pdo = null;
     if ($pdo === null) {
