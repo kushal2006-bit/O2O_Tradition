@@ -35,7 +35,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if($title==='') $error='Please enter a title.';
   elseif($price<=0) $error='Please enter a selling price greater than ₹0.';
   elseif(!in_array($condition,$allowed,true)) $error='Please select a valid condition.';
-  else{
+  elseif($error===''){
     $st=$db->prepare("INSERT INTO seller_listings (seller_id,title,description,price,condition_label,status,pickup_option,image_path) VALUES (?,?,?,?,?,'pending_review',?,?)");
     $st->execute([$customerId,$title,$description,$price,$condition,$pickup,$imagePath]);
     header('Location: sell.php?created=1');exit;
@@ -44,6 +44,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 if(isset($_GET['created'])) $message='Your item has been submitted for review. It will not appear publicly until it is approved.';
 $ls=$db->prepare("SELECT * FROM seller_listings WHERE seller_id=? ORDER BY created_at DESC");
 $ls->execute([$customerId]);$listings=$ls->fetchAll();
+$activeStmt=$db->query("SELECT sl.*,c.name seller_name FROM seller_listings sl JOIN customers c ON c.id=sl.seller_id WHERE sl.status='active' ORDER BY sl.created_at DESC");
+$activeListings=$activeStmt->fetchAll();
 $statusLabels=['draft'=>'Draft','pending_review'=>'Pending review','active'=>'Active','sold'=>'Sold','cancelled'=>'Cancelled'];
 ?><!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Sell – O2O Tradition</title>
 <style>
@@ -63,6 +65,8 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <div class="row"><label>Fulfilment</label><label style="font-weight:normal"><input type="checkbox" name="pickup_option" checked> Local pickup available</label></div></div>
 <button class="button" type="submit">Submit Listing for Review</button>
 </form>
-<section class="listings"><h2 style="font:28px Georgia,serif">My Sell Listings</h2>
+<section class="listings"><h2 style="font:28px Georgia,serif">Marketplace Sell Listings</h2>
+<?php if($activeListings):foreach($activeListings as $a):?><div class="card"><div><?php if(!empty($a['image_path'])&&file_exists($uploadDir.$a['image_path'])):?><img src="<?=$uploadWeb.htmlspecialchars($a['image_path'])?>" style="width:85px;height:85px;object-fit:cover;float:left;margin-right:14px"><?php endif;?><div class="name"><?=htmlspecialchars($a['title'])?></div><div class="meta">₹<?=number_format($a['price'],0)?> · <?=htmlspecialchars(ucwords(str_replace('_',' ',$a['condition_label'])))?> · Seller: <?=htmlspecialchars($a['seller_name'])?></div><div class="meta"><?=htmlspecialchars($a['description'])?></div></div><div class="status" style="background:#D1FAE5;color:#065F46">Available</div></div><?php endforeach;else:?><div class="card"><div class="meta">No approved sell listings are currently available.</div></div><?php endif;?>
+<h2 style="font:28px Georgia,serif;margin-top:35px">My Sell Listings</h2>
 <?php if($listings):foreach($listings as $l):?><div class="card"><div><?php if(!empty($l['image_path'])&&file_exists($uploadDir.$l['image_path'])):?><img src="<?=$uploadWeb.htmlspecialchars($l['image_path'])?>" style="width:70px;height:70px;object-fit:cover;float:left;margin-right:14px"><?php endif; ?><div class="name"><?=htmlspecialchars($l['title'])?></div><div class="meta">₹<?=number_format($l['price'],0)?> · <?=htmlspecialchars(ucwords(str_replace('_',' ',$l['condition_label'])))?> · <?=date('d M Y',strtotime($l['created_at']))?></div></div><div class="status"><?=htmlspecialchars($statusLabels[$l['status']]??$l['status'])?></div></div><?php endforeach;else:?><div class="card"><div class="meta">You have not submitted any sell listings yet.</div></div><?php endif;?>
 </section></main></body></html>
