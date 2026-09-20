@@ -4,6 +4,7 @@ require_once '../shared/config.php';
 requireLogin('customer','login.php');
 $db=getDB();
 $customerId=(int)$_SESSION['customer_id'];
+function notifySwap(PDO $db,int $customerId,string $title,string $message):void{$db->prepare("INSERT INTO notifications(customer_id,type,title,message) VALUES(?,?,?,?)")->execute([$customerId,'swap_update',$title,$message]);}
 $message='';
 $error='';
 
@@ -51,6 +52,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $reject->execute([$request['swap_listing_id'],$requestId]);
 
       $db->commit();
+      notifySwap($db,(int)$request['requester_id'],'Swap accepted','Your swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).' was accepted. Both items are now matched.');
+      notifySwap($db,(int)$request['target_owner'],'Swap accepted','You accepted swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).'. Both items are now matched.');
       $message='Swap accepted. Both items are now marked as matched.';
     } elseif($action==='reject'){
       if(!$isOwner) throw new RuntimeException('Only the owner of the requested item can reject it.');
@@ -58,6 +61,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $up=$db->prepare("UPDATE swap_requests SET status='rejected' WHERE id=? AND swap_listing_id=?");
       $up->execute([$requestId,$request['swap_listing_id']]);
       $db->commit();
+      notifySwap($db,(int)$request['requester_id'],'Swap request rejected','Your swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).' was rejected.');
       $message='Swap request rejected.';
     } elseif($action==='cancel'){
       if(!$isRequester) throw new RuntimeException('Only the requester can cancel this request.');
@@ -65,6 +69,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $up=$db->prepare("UPDATE swap_requests SET status='cancelled' WHERE id=? AND requester_id=?");
       $up->execute([$requestId,$customerId]);
       $db->commit();
+      notifySwap($db,(int)$request['target_owner'],'Swap request cancelled','Swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).' was cancelled by the requester.');
       $message='Swap request cancelled.';
     } else {
       throw new RuntimeException('Invalid swap action.');
