@@ -394,7 +394,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
     <span class="ai-button">AI Stylist · Coming Next</span>
   </section>
 
-  <div class="footer-note">O2O Tradition is being built in stages. Only the rental flow is currently live in this development baseline.</div>
+  <div class="footer-note">O2O Tradition is being built in stages. Rent, Buy, Sell and community Swap flows are now part of this development baseline; AI features remain planned.</div>
 </main>
 </body>
 </html>
