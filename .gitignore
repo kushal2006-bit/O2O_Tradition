@@ -1,0 +1,22 @@
+# Local configuration / secrets
+.env
+.env.*
+shared/config.php
+
+# User-generated uploads
+uploads/items/*
+!uploads/items/.gitkeep
+uploads/avatars/*
+!uploads/avatars/.gitkeep
+uploads/condition-reports/*
+!uploads/condition-reports/.gitkeep
+
+# Local / IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# PHP / OS generated files
+*.log
+*.tmp
