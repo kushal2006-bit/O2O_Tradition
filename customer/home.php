@@ -95,7 +95,7 @@ $modeDescriptions = [
     'rent' => ['title' => 'Rent for Your Occasion', 'subtitle' => 'Browse the existing rental catalogue and book attire for your dates.'],
     'buy'  => ['title' => 'Buy Traditional Wear', 'subtitle' => 'Browse items currently listed for purchase and place a Cash on Delivery order.'],
     'sell' => ['title' => 'Sell Your Traditional Wear', 'subtitle' => 'Seller listings are part of the marketplace foundation and will be activated next.'],
-    'swap' => ['title' => 'Swap with the Community', 'subtitle' => 'Swap matching and requests are planned for the next marketplace step.'],
+    'swap' => ['title' => 'Swap with the Community', 'subtitle' => 'List an item, discover community offers, and send or manage swap requests.'],
 ];
 
 $modeLabels = [
@@ -258,7 +258,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
   <a class="mode <?= $mode === 'rent' ? 'active' : '' ?>" href="?mode=rent"><strong>👘 Rent</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'buy' ? 'active' : '' ?>" href="?mode=buy"><strong>🛍 Buy</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="sell.php"><strong>💰 Sell</strong><span>List an item</span></a>
-  <a class="mode <?= $mode === 'swap' ? 'active' : '' ?>" href="?mode=swap"><strong>♻ Swap</strong><span>Coming next</span></a>
+  <a class="mode <?= $mode === 'swap' ? 'active' : '' ?>" href="swap.php"><strong>♻ Swap</strong><span>Available now</span></a>
 </nav>
 
 <main class="main">
@@ -267,7 +267,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
       <h2><?= htmlspecialchars($modeDescriptions[$mode]['title']) ?></h2>
       <p><?= htmlspecialchars($modeDescriptions[$mode]['subtitle']) ?></p>
     </div>
-    <?php if ($mode !== 'rent' && $mode !== 'all'): ?><div class="coming">Marketplace mode coming next</div><?php endif; ?>
+    <?php if ($mode === 'swap'): ?><a href="swap.php" class="ai-button" style="text-decoration:none">Open Swap Marketplace</a><?php elseif ($mode !== 'rent' && $mode !== 'all'): ?><div class="coming">Marketplace mode coming next</div><?php endif; ?>
   </section>
 
   <?php if ($mode === 'buy'): ?>
