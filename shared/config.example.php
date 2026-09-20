@@ -8,9 +8,11 @@ define('DB_USER', getenv('O2O_DB_USER') ?: 'root');
 define('DB_PASS', getenv('O2O_DB_PASS') ?: '');
 define('DB_CHARSET', 'utf8mb4');
 
-// AI provider configuration (never commit a real API key).
-// Set OPENAI_API_KEY in the server environment when enabling AI analysis.
+// AI provider configuration (never commit real keys).
+// OpenAI-backed features can use OPENAI_API_KEY when enabled.
+// Free virtual try-on uses HF_TOKEN for the public IDM-VTON ZeroGPU Space.
 define('O2O_AI_MODEL', getenv('O2O_AI_MODEL') ?: 'gpt-5.6-luna');
+// HF_TOKEN is intentionally read directly from the environment by customer/tryon.php.
 
 function getDB() {
     static $pdo = null;
