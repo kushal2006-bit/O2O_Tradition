@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
 $db = getDB();
@@ -27,6 +29,7 @@ $customer = $customerStmt->fetch();
 
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    o2oRequireCsrf();
     $address = trim($_POST['shipping_address'] ?? '');
     $paymentMethod = $_POST['payment_method'] ?? 'Cash on Delivery';
 
@@ -99,6 +102,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <div class="summary"><strong>Purchase total</strong><div class="price">₹<?=number_format((float)$item['buy_price'],0)?></div><p class="muted">Delivery charge: ₹0 in this development step.</p></div>
 <?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
 <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <input type="hidden" name="item_id" value="<?=$itemId?>">
 <div class="field"><label>Delivery Address *</label><textarea name="shipping_address" required><?=htmlspecialchars($_POST['shipping_address'] ?? $customer['address'] ?? '')?></textarea></div>
 <div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option></select></div>
