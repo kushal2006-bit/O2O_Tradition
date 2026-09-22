@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
 $db = getDB();
@@ -16,6 +18,7 @@ $customer=$custStmt->fetch();
 $error='';
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
+    o2oRequireCsrf();
     $address=trim($_POST['delivery_address']??'');
     $payment=$_POST['payment_method']??'';
     $pickup=$_POST['pickup_date']??'';
@@ -47,6 +50,7 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <div class="item-info"><div class="item-name"><?=htmlspecialchars($item['name'])?></div><div class="item-store-tag">🏬 <?=htmlspecialchars($item['store_name'])?></div><div class="item-desc-sm"><?=htmlspecialchars($item['description'])?></div><div style="font-size:12px;color:#888;margin-bottom:12px">📍 <?=htmlspecialchars($item['store_address'])?> | 📞 <?=htmlspecialchars($item['store_phone'])?></div>
 <div class="price-table"><div class="price-row"><span class="label">Condition</span><span><?=htmlspecialchars($item['quality'])?></span></div><div class="price-row"><span class="label">Rent per Day</span><span>₹<?=number_format($item['rent_per_day'],0)?></span></div><?php if($item['rent_per_hour']>0):?><div class="price-row"><span class="label">Rent per Hour</span><span>₹<?=number_format($item['rent_per_hour'],0)?></span></div><?php endif;?><div class="price-row due"><span class="label">Late Return Charge</span><span>₹<?=number_format($item['late_charge_per_day'],0)?>/day</span></div></div></div></div>
 <div class="order-form"><div class="form-title">Booking Details</div><?php if($error):?><div class="alert-error"><?=htmlspecialchars($error)?></div><?php endif;?><form method="POST" id="orderForm">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
 <div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option><option>Online Payment</option><option>UPI</option></select></div>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
