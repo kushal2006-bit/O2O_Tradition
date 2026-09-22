@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('vendor', 'login.php');
 
 $vendorId = $_SESSION['vendor_id'];
@@ -9,6 +11,7 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    o2oRequireCsrf();
     $name = trim($_POST['name'] ?? '');
     $description = trim($_POST['description'] ?? '');
     $category = trim($_POST['category'] ?? '');
@@ -139,6 +142,7 @@ h1{font:32px Georgia,serif}.subtitle{color:#777;font-size:13px;line-height:1.5;m
   <?php if ($success): ?><div class="success"><?= htmlspecialchars($success) ?></div><?php endif; ?>
 
   <form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
     <div class="grid">
       <div class="field"><label>Item Name *</label><input name="name" required></div>
       <div class="field"><label>Category</label><input name="category" placeholder="Saree, Sherwani, Lehenga..."></div>
