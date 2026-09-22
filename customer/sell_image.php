@@ -1,0 +1,7 @@
+<?php
+session_start();require_once '../shared/config.php';requireLogin('customer','login.php');$db=getDB();$id=(int)($_GET['id']??0);
+$st=$db->prepare("SELECT image_path,status,seller_id FROM seller_listings WHERE id=? LIMIT 1");$st->execute([$id]);$row=$st->fetch();
+if(!$row||empty($row['image_path'])||($row['status']!=='active'&&(int)$row['seller_id']!==(int)$_SESSION['customer_id'])){http_response_code(404);exit('Not found');}
+$path=__DIR__.'/../uploads/sell/'.basename($row['image_path']);if(!is_file($path)){http_response_code(404);exit('Not found');}
+$mime=(new finfo(FILEINFO_MIME_TYPE))->file($path);if(!in_array($mime,['image/jpeg','image/png','image/webp'],true)){http_response_code(404);exit('Not found');}
+header('Content-Type: '.$mime);header('Cache-Control: private,max-age=300');readfile($path);
