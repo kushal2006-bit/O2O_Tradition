@@ -2,6 +2,7 @@
 session_start();require_once '../shared/config.php';
 require_once '../shared/security.php';
 o2oCsrfToken();requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];
+if($_SERVER['REQUEST_METHOD']==='POST'){ o2oRequireCsrf(); }
 if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='read'){ $id=(int)($_POST['id']??0);$db->prepare("UPDATE notifications SET is_read=1 WHERE id=? AND customer_id=?")->execute([$id,$customerId]);header('Location: notifications.php');exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='all_read'){$db->prepare("UPDATE notifications SET is_read=1 WHERE customer_id=?")->execute([$customerId]);header('Location: notifications.php');exit;}
 $st=$db->prepare("SELECT * FROM notifications WHERE customer_id=? ORDER BY created_at DESC LIMIT 100");$st->execute([$customerId]);$notifications=$st->fetchAll();$unread=0;foreach($notifications as $n)$unread+=(int)!$n['is_read'];
