@@ -29,6 +29,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
         if($admin&&password_verify($password,$admin['password'])){
             session_regenerate_id(true);
+            $_SESSION['csrf_token']=bin2hex(random_bytes(32));
             $_SESSION['admin_id']=(int)$admin['id'];
             $_SESSION['admin_name']=$admin['name'];
             header('Location: dashboard.php');
