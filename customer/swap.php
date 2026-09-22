@@ -102,7 +102,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <section class="section"><h2>Community Swap Listings</h2>
 <?php if($market): foreach($market as $m):?>
 <div class="card">
-<?php if(!empty($m['image_path'])&&file_exists($uploadDir.$m['image_path'])):?><img class="thumb" src="<?=$uploadWeb.htmlspecialchars($m['image_path'])?>" alt=""><?php else:?><div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:38px">♻️</div><?php endif;?>
+<?php if(!empty($m['image_path'])&&file_exists($uploadDir.$m['image_path'])):?><img class="thumb" src="swap_image.php?id=<?=$m['id']?>" alt=""><?php else:?><div class="thumb" style="display:flex;align-items:center;justify-content:center;font-size:38px">♻️</div><?php endif;?>
 <div style="flex:1"><div class="name"><?=htmlspecialchars($m['title'])?></div><div class="meta">Owner: <?=htmlspecialchars($m['owner_name'])?> · <?=htmlspecialchars(ucwords(str_replace('_',' ',$m['condition_label'])))?></div><div class="meta"><?=htmlspecialchars($m['description'])?></div><div class="meta">Wants: <?=htmlspecialchars($m['preferred_item'] ?: ($m['preferred_category'] ?: 'Open to suitable traditional-wear offers'))?><?php if($m['location']):?> · Area: <?=htmlspecialchars($m['location'])?><?php endif;?></div><a class="button-link" href="swap_request.php?id=<?=$m['id']?>">Propose a Swap</a></div>
 <div class="status">Available</div>
 </div>
