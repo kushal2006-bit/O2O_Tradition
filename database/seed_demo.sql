@@ -19,3 +19,8 @@ INSERT INTO items (vendor_id, name, description, category, quality, rent_per_hou
 (3, 'Anarkali Suit', 'Floor-length Anarkali suit in deep teal with heavy embroidery at neckline and hem.', 'Anarkali', 'Excellent', 70, 700, 140);
 
 -- Default demo account password is: password
+
+INSERT INTO admins (name, email, password) VALUES
+('Demo Admin', 'admin@o2otradition.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+
+-- Demo admin password is: password
