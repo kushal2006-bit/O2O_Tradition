@@ -15,6 +15,8 @@ if(isset($_SESSION['admin_id'])){header('Location: dashboard.php');exit;}
 $db=getDB();$error='';
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) { $error='Invalid form session. Please refresh and try again.'; }
+    else {
     $email=trim($_POST['email']??'');
     $password=$_POST['password']??'';
 
