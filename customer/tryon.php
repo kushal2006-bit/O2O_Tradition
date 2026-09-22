@@ -14,13 +14,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
  else{$st=$db->prepare("SELECT id FROM tryon_requests WHERE customer_id=? AND avatar_id=? AND item_id=? AND status IN ('queued','processing') LIMIT 1");$st->execute([$customerId,$avatarId,$itemId]);
  if($st->fetch())$error='A try-on request for this avatar and item is already waiting.';
  else{
+  $claim=$db->prepare("INSERT INTO tryon_requests(customer_id,avatar_id,item_id,input_image,status) VALUES(?,?,?,?, 'processing')");
+  $claim->execute([$customerId,$avatarId,$itemId,$avatar['photo_path']]);
+  $requestId=(int)$db->lastInsertId();
   $avatarImage=__DIR__.'/../uploads/avatars/'.($avatar['photo_path']??'');$itemImage=__DIR__.'/../uploads/items/'.($item['image_path']??'');
   $hfToken=trim((string)(getenv('HF_TOKEN')?:($HF_TOKEN??'')));
   if(!$hfToken)$error='Free AI provider is not configured yet.';
   elseif(!$avatar['photo_path']||!is_file($avatarImage))$error='The selected avatar photo is unavailable.';
   elseif(!$item['image_path']||!is_file($itemImage))$error='This item does not have a usable product image for try-on.';
   else{
-   $ins=$db->prepare("INSERT INTO tryon_requests(customer_id,avatar_id,item_id,input_image,status) VALUES(?,?,?,?, 'processing')");$ins->execute([$customerId,$avatarId,$itemId,$avatar['photo_path']]);$requestId=(int)$db->lastInsertId();
    $hfBase='https://yisol-idm-vton.hf.space';
    $uploadFile=function($path)use($hfBase,$hfToken){
     $ch=curl_init($hfBase.'/gradio_api/upload');$post=['files'=>new CURLFile($path)];
