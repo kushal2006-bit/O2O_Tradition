@@ -21,6 +21,7 @@ INSERT INTO items (vendor_id, name, description, category, quality, rent_per_hou
 -- Default demo account password is: password
 
 INSERT INTO admins (name, email, password) VALUES
-('Demo Admin', 'admin@o2otradition.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi');
+('Demo Admin', 'admin@o2otradition.test', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi')
+ON DUPLICATE KEY UPDATE name=VALUES(name), password=VALUES(password);
 
 -- Demo admin password is: password
