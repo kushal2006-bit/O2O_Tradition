@@ -1,25 +1,45 @@
 # O2O Tradition
 
-O2O Tradition is a hyperlocal traditional-wear marketplace for **Rent, Buy, Sell & Swap**, with planned AI-powered style bundles, size guidance, condition assistance, and virtual try-on.
+O2O Tradition is a hyperlocal traditional-wear marketplace for **Rent, Buy, Sell & Swap**, with AI-powered style bundles, size guidance, condition assistance, and virtual try-on.
 
-## Current repository baseline
+## Current development branch
 
-This repository starts from the working Vasanam traditional-attire rental prototype and keeps its customer and vendor rental flows as the compatibility baseline.
+The `development` branch contains the evolving marketplace implementation. The original Vasanam rental flow remains the compatibility baseline.
 
-### Included now
+### Implemented in development
 
-- Customer login/signup and session authentication
-- Vendor login and vendor dashboard
-- Traditional-attire search and store discovery by pincode
-- Rental item details and rental checkout
-- Rental order tracking and late-charge handling
-- Vendor inventory management and image upload flow
-- PDO/prepared-statement database access
-- Expanded database schema for Buy, Sell, Swap, trust, reviews, AI data, recommendations, notifications, and rewards
+- Customer and vendor authentication
+- Smart homepage with Rent / Buy / Sell / Swap modes
+- Pincode-based store and product discovery
+- Rental checkout, order history, tracking, and late-charge handling
+- Vendor inventory and image upload
+- Buy flow and buy-order tracking
+- Customer Sell listings, vendor review, seller sales management, and pre-owned purchase flow
+- Swap listings and swap-request workflow
+- Vendor verification submission and verified-vendor display
+- Condition reports and sanitization records
+- AI condition-assistant workflow
+- Customer reviews and AI review summaries
+- AI Personal Stylist
+- AI Complete Look
+- Size profile and deterministic Size & Fit guidance
+- AI Avatar profile
+- Virtual Try-On workflow using the Hugging Face IDM-VTON Space integration
+- Current recommendation, notification, rewards, occasion, map, rental-tracking, wishlist, and customer-assistant foundations
 
-### Not implemented yet
+## Virtual Try-On configuration
 
-The new marketplace and AI tables are schema foundations only. Buy, Sell, Swap, AI stylist, avatar, virtual try-on, recommendations, maps, notifications, rewards, admin, and other planned features still need application code and testing.
+The current development implementation uses the free Hugging Face IDM-VTON ZeroGPU Space for prototype/judge demonstration.
+
+The HF token must **never** be committed to GitHub or pasted into chat.
+
+The try-on code supports either:
+- server environment variable `HF_TOKEN`, or
+- a private server PHP file at `/home/o2otra0675/secure/hf_token.php` defining `$HF_TOKEN`.
+
+The private token file is outside the public project directory and is not part of this repository.
+
+The IDM-VTON integration is a prototype/demo integration. Its model license and the limits of the free ZeroGPU service must be considered before production/commercial deployment.
 
 ## Repository structure
 
@@ -27,43 +47,45 @@ The new marketplace and AI tables are schema foundations only. Buy, Sell, Swap, 
 O2O_Tradition/
 ├── customer/
 ├── vendor/
+├── admin/
 ├── shared/
-│   └── config.example.php
 ├── uploads/
-│   ├── items/
-│   ├── avatars/
-│   └── condition-reports/
 ├── database/
 │   ├── database.sql
-│   └── seed_demo.sql
+│   ├── seed_demo.sql
+│   └── migrations/
 ├── .gitignore
 └── README.md
 ```
 
 ## Local setup
 
-1. Create a MySQL database, for example `o2o_tradition`.
+1. Create a MySQL database.
 2. Import `database/database.sql`.
-3. If you want demo records, import `database/seed_demo.sql`.
+3. If needed for development, import `database/seed_demo.sql`.
 4. Copy `shared/config.example.php` to `shared/config.php`.
-5. Set the database values in `shared/config.php` or provide `O2O_DB_HOST`, `O2O_DB_NAME`, `O2O_DB_USER`, and `O2O_DB_PASS`.
-6. Ensure the upload folders are writable by PHP.
-7. Open `customer/login.php` or `vendor/login.php` through your PHP web server.
+5. Set database values in `shared/config.php) or provide `O2O_DB_HOST`, `O2O_DB_NAME`, `O2O_DB_USER`, and `O2O_DB_PASS`.
+6. Ensure upload folders are writable by PHP.
+7. For virtual try-on, configure `HF_TOKEN` as a server environment variable or use a private PHP secret file outside the public web root.
+8. Open the customer or vendor login page through a PHP web server.
 
 ## Security
 
-- Real credentials are never committed to GitHub.
+- Real credentials and API tokens are never committed to GitHub.
 - The live hosting `config.php` is intentionally excluded.
 - The original ZIP's `.git` metadata and packaging artifacts are not imported.
 - Runtime uploads are ignored by Git.
-- Demo credentials in `database/seed_demo.sql` are for development only.
+- Sensitive upload directories have access-control rules.
+- Demo credentials are for development only.
 
-## Product roadmap
+## Development rule
 
-1. Core marketplace: Buy, Sell, Swap, hyperlocal discovery, vendor store pages, transparent pricing, and unified product modes.
-2. AI layer: personal stylist, complete-look bundles, avatar, virtual try-on, and size/fit guidance.
-3. Trust and intelligence: verification, condition reports, review summaries, and rental tracking.
-4. Discovery and retention: occasions, recommendations, maps, notifications, rewards, and circular-fashion history.
-5. Business/admin: demand intelligence, customer assistant, moderation, disputes, and analytics.
+A feature should only be described as live after its backend, UI, and real-world flow have been implemented and tested on the target environment.
 
-A feature should only be described as live after its backend, UI, and real-world flow have been implemented and tested.
+## Roadmap
+
+1. Complete and harden core marketplace flows.
+2. Complete and test the AI layer.
+3. Complete trust, condition, review, and rental intelligence.
+4. Complete discovery, recommendations, maps, notifications, and rewards.
+5. Complete business/admin intelligence, moderation, disputes, analytics, and production hardening.
