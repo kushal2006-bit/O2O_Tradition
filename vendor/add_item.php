@@ -40,12 +40,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $ext = strtolower(pathinfo($_FILES['item_image']['name'], PATHINFO_EXTENSION));
             $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
 
-            if (!in_array($ext, $allowed, true)) {
+            $mimeMap = [
+                'image/jpeg' => ['jpg', 'jpeg'],
+                'image/png' => ['png'],
+                'image/gif' => ['gif'],
+                'image/webp' => ['webp'],
+            ];
+            $mime = (new finfo(FILEINFO_MIME_TYPE))->file($_FILES['item_image']['tmp_name']);
+            if (!in_array($ext, $allowed, true) || !isset($mimeMap[$mime]) || !in_array($ext, $mimeMap[$mime], true)) {
                 $error = 'Invalid image format.';
             } elseif ($_FILES['item_image']['size'] > 5 * 1024 * 1024) {
                 $error = 'Image too large. Max 5MB.';
             } else {
-                $imagePath = uniqid('item_', true) . '.' . $ext;
+                $imagePath = bin2hex(random_bytes(16)) . '.' . $ext;
                 if (!move_uploaded_file($_FILES['item_image']['tmp_name'], $dir . $imagePath)) {
                     $error = 'Failed to upload image.';
                     $imagePath = '';
