@@ -70,6 +70,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(file_put_contents($dir.'/'.$filename,$bytes)===false)throw new Exception('Could not save result image');
     $db->prepare("UPDATE tryon_requests SET result_image=?,status='completed' WHERE id=?")->execute([$filename,$requestId]);$message='Free AI virtual try-on completed. This is a visualization, not a guarantee of fit or exact drape.';
    }catch(Throwable $e){$db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=?")->execute([$requestId]);$error='The free AI try-on service could not complete this request. Please try again later.';}
+   }
+  }finally{$db->prepare("SELECT RELEASE_LOCK(?)")->execute([$lockName]);}
   }
  }}
  }
