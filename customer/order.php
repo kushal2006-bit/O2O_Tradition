@@ -15,6 +15,25 @@ if (!$item) { header('Location: home.php'); exit; }
 $custStmt=$db->prepare("SELECT * FROM customers WHERE id=?");
 $custStmt->execute([$_SESSION['customer_id']]);
 $customer=$custStmt->fetch();
+$sizeStmt=$db->prepare("SELECT id,size_label FROM product_sizes WHERE item_id=? AND available=1 ORDER BY size_label");
+$sizeStmt->execute([$itemId]);
+$sizes=$sizeStmt->fetchAll();
+$selectedSizeId=(int)($_POST['product_size_id']??$_GET['size_id']??0);
+if(!$selectedSizeId&&$sizes){
+    $profileStmt=$db->prepare("SELECT chest,waist,hip FROM size_profiles WHERE customer_id=? LIMIT 1");
+    $profileStmt->execute([$_SESSION['customer_id']]);$profile=$profileStmt->fetch();
+    if($profile){
+        $bestDiff=PHP_INT_MAX;
+        foreach($sizes as $size){
+            $measurementStmt=$db->prepare("SELECT chest,waist,hip FROM product_sizes WHERE id=? AND item_id=? AND available=1");
+            $measurementStmt->execute([(int)$size['id'],$itemId]);$measurement=$measurementStmt->fetch();
+            if(!$measurement)continue;
+            $diff=0;$used=false;
+            foreach(['chest','waist','hip'] as $m){if($profile[$m]!==null&&$measurement[$m]!==null){$diff+=abs((float)$profile[$m]-(float)$measurement[$m]);$used=true;}}
+            if($used&&$diff<$bestDiff){$bestDiff=$diff;$selectedSizeId=(int)$size['id'];}
+        }
+    }
+}
 $error='';
 
 if ($_SERVER['REQUEST_METHOD']==='POST') {
@@ -23,9 +42,14 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $payment=$_POST['payment_method']??'';
     $pickup=$_POST['pickup_date']??'';
     $return=$_POST['return_date']??'';
+    $productSizeId=(int)($_POST['product_size_id']??0);
     $allowedPayments=['Cash on Delivery'];
     if (!$address || !$payment || !$pickup || !$return) {
         $error='Please fill in all required fields.';
+    } elseif ($sizes && !$productSizeId) {
+        $error='Please select a size for this item.';
+    } elseif ($productSizeId && !array_filter($sizes, fn($size)=>(int)$size['id']===$productSizeId)) {
+        $error='Please select an available size for this item.';
     } elseif (!in_array($payment,$allowedPayments,true)) {
         $error='Please select a valid payment method.';
     } elseif (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$pickup) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$return) || $pickup < date('Y-m-d') || $return <= $pickup) {
@@ -41,8 +65,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             if($overlap->fetch()) throw new RuntimeException('This item is already booked for part of those dates.');
             $days=(strtotime($return)-strtotime($pickup))/86400;
             $total=$days*$item['rent_per_day'];
-            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,status) VALUES (?,?,?,?,?,?,?,?,'new')");
-            $stmt->execute([$_SESSION['customer_id'],$item['id'],$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
+            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,status) VALUES (?,?,?,?,?,?,?,?,?,'new')");
+            $stmt->execute([$_SESSION['customer_id'],$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
             $orderId=(int)$db->lastInsertId();
             $db->commit();
             header('Location: order_success.php?order_id='.$orderId);
@@ -70,6 +94,7 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <div class="price-table"><div class="price-row"><span class="label">Condition</span><span><?=htmlspecialchars($item['quality'])?></span></div><div class="price-row"><span class="label">Rent per Day</span><span>₹<?=number_format($item['rent_per_day'],0)?></span></div><?php if($item['rent_per_hour']>0):?><div class="price-row"><span class="label">Rent per Hour</span><span>₹<?=number_format($item['rent_per_hour'],0)?></span></div><?php endif;?><div class="price-row due"><span class="label">Late Return Charge</span><span>₹<?=number_format($item['late_charge_per_day'],0)?>/day</span></div></div></div></div>
 <div class="order-form"><div class="form-title">Booking Details</div><?php if($error):?><div class="alert-error"><?=htmlspecialchars($error)?></div><?php endif;?><form method="POST" id="orderForm">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+<?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div style="font-size:11px;color:#888;margin-top:5px">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
 <div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
