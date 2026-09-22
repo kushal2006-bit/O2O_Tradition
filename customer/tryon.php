@@ -5,6 +5,7 @@ if(is_file($hfSecretFile))require_once $hfSecretFile;
 requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];$itemId=(int)($_GET['item_id']??$_POST['item_id']??0);$error='';$message='';
 $st=$db->prepare("SELECT i.*,v.store_name FROM items i JOIN vendors v ON v.id=i.vendor_id WHERE i.id=? AND i.available=1");$st->execute([$itemId]);$item=$st->fetch();if(!$item){header('Location:home.php');exit;}
 $st=$db->prepare("SELECT * FROM user_avatars WHERE customer_id=? ORDER BY created_at DESC");$st->execute([$customerId]);$avatars=$st->fetchAll();
+
 if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='request'){
  $avatarId=(int)($_POST['avatar_id']??0);$st=$db->prepare("SELECT id,photo_path FROM user_avatars WHERE id=? AND customer_id=?");$st->execute([$avatarId,$customerId]);$avatar=$st->fetch();
  if(!$avatar)$error='Please select one of your saved avatar profiles.';
@@ -12,7 +13,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='request'){
  if($st->fetch())$error='A try-on request for this avatar and item is already waiting.';
  else{
   $avatarImage=__DIR__.'/../uploads/avatars/'.($avatar['photo_path']??'');$itemImage=__DIR__.'/../uploads/items/'.($item['image_path']??'');
-  $hfToken=getenv('HF_TOKEN')?:'';
+  $hfToken=trim((string)(getenv('HF_TOKEN')?:($HF_TOKEN??'')));
   if(!$hfToken)$error='Free AI provider is not configured yet.';
   elseif(!$avatar['photo_path']||!is_file($avatarImage))$error='The selected avatar photo is unavailable.';
   elseif(!$item['image_path']||!is_file($itemImage))$error='This item does not have a usable product image for try-on.';
@@ -38,15 +39,26 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='request'){
     $ch=curl_init($hfBase.'/gradio_api/call/tryon');curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Content-Type: application/json','Authorization: Bearer '.$hfToken],CURLOPT_POSTFIELDS=>json_encode($payload),CURLOPT_TIMEOUT=>60]);$raw=curl_exec($ch);$http=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
     if($http<200||$http>=300)throw new Exception('Try-on request failed');
     $job=json_decode($raw?:'',true);$eventId=$job['event_id']??'';if(!$eventId)throw new Exception('No try-on event returned');
-    $resultRaw='';$deadline=time()+150;
+    $resultData=null;$deadline=time()+150;
     while(time()<$deadline){
       sleep(3);$ch=curl_init($hfBase.'/gradio_api/call/tryon/'.$eventId);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$hfToken],CURLOPT_TIMEOUT=>30]);$poll=curl_exec($ch);$pollHttp=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
       if($pollHttp<200||$pollHttp>=300)continue;
-      $lines=preg_split("/\r?\n/",$poll?:'');foreach($lines as $line){if(str_starts_with($line,'data: ')){$data=json_decode(substr($line,6),true);if(is_array($data)&&isset($data[0]))$resultRaw=$data[0];}}
-      if(str_contains($poll?:'event: complete','event: complete'))break;
-      if(str_contains($poll?:'event: error','event: error'))throw new Exception('Try-on provider returned an error');
+      $lines=preg_split("/\r?\n/",$poll?:'');
+      foreach($lines as $line){
+        if(!str_starts_with($line,'data: '))continue;
+        $data=json_decode(substr($line,6),true);
+        if(!is_array($data))continue;
+        if(isset($data[0])&&is_array($data[0])){$resultData=$data[0];}
+      }
+      if(str_contains($poll?:'','event: complete'))break;
+      if(str_contains($poll?:'','event: error'))throw new Exception('Try-on provider returned an error');
     }
-    $out=$resultRaw['path']??$resultRaw['url']??'';if(!$out)throw new Exception('No try-on image returned');
+    $out='';
+    if(is_array($resultData)){
+      if(isset($resultData['path']))$out=$resultData['path'];
+      elseif(isset($resultData['url']))$out=$resultData['url'];
+    }
+    if(!$out)throw new Exception('No try-on image returned');
     if(!preg_match('/^https?:\/\//',$out))$out=$hfBase.'/gradio_api/file='.$out;
     $ch=curl_init($out);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$hfToken],CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>60]);$bytes=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
     if($code<200||$code>=300||$bytes===false)throw new Exception('Could not retrieve result image');
