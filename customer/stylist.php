@@ -18,7 +18,25 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
    if($raw===false||$http<200||$http>=300) $error='AI request failed. Please try again.';
    else {$resp=json_decode($raw,true);$text=$resp['output_text']??'';if(!$text&&isset($resp['output']))foreach($resp['output'] as $o)foreach(($o['content']??[]) as $part)if(isset($part['text']))$text.=$part['text'];$data=json_decode(trim($text),true);
     if(!is_array($data))$error='AI returned an unreadable styling plan.';
-    else {$valid=[];foreach(($data['recommendations']??[]) as $rec){$id=(int)($rec['item_id']??0);foreach($catalog as $p)if((int)$p['id']===$id){$rec['product']=$p;$valid[]=$rec;break;}}$data['recommendations']=$valid;$result=$data;}
+    else {
+      $valid=[];$seenIds=[];
+      foreach(array_slice(($data['recommendations']??[]),0,3) as $rec){
+        if(!is_array($rec))continue;
+        $id=(int)($rec['item_id']??0);
+        if($id<=0||isset($seenIds[$id]))continue;
+        foreach($catalog as $p)if((int)$p['id']===$id){
+          $rec['why']=trim((string)($rec['why']??''));
+          $rec['styling_tips']=trim((string)($rec['styling_tips']??''));
+          $rec['accessories']=array_values(array_filter(array_map('strval',is_array($rec['accessories']??null)?$rec['accessories']:[])));
+          $rec['product']=$p;$valid[]=$rec;$seenIds[$id]=true;break;
+        }
+      }
+      $data['intro']=trim((string)($data['intro']??'Your styling plan'));
+      $data['fallback_advice']=trim((string)($data['fallback_advice']??''));
+      $data['recommendations']=$valid;
+      if(!$valid)$error='AI did not return any valid catalogue recommendations. Please try different preferences.';
+      else $result=$data;
+    }
    }
   }
  }}
