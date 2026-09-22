@@ -30,6 +30,7 @@ if(!isset($allowed[$mime])){
     exit('Not found');
 }
 
+header('X-Content-Type-Options: nosniff');
 header('Content-Type: '.$mime);
 header('Content-Length: '.filesize($path));
 header('Cache-Control: private, max-age=300');
