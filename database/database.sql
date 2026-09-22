@@ -66,7 +66,6 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
-    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL,
     FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
 );
 
@@ -113,7 +112,6 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     total_price DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
-    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS seller_listings (
