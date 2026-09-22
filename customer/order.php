@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $payment=$_POST['payment_method']??'';
     $pickup=$_POST['pickup_date']??'';
     $return=$_POST['return_date']??'';
-    $allowedPayments=['Cash on Delivery','Online Payment','UPI'];
+    $allowedPayments=['Cash on Delivery'];
     if (!$address || !$payment || !$pickup || !$return) {
         $error='Please fill in all required fields.';
     } elseif (!in_array($payment,$allowedPayments,true)) {
@@ -71,7 +71,7 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <div class="order-form"><div class="form-title">Booking Details</div><?php if($error):?><div class="alert-error"><?=htmlspecialchars($error)?></div><?php endif;?><form method="POST" id="orderForm">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
-<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option><option>Online Payment</option><option>UPI</option></select></div>
+<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
 <div class="estimate-box" id="estimateBox" style="display:none">Estimated Rent: <strong id="estimateAmt">₹0</strong><div id="estimateDays" style="font-size:12px;color:#888;margin-top:4px"></div></div>
 <button type="submit" class="btn-order">Confirm & Place Order</button></form></div></div></div>
