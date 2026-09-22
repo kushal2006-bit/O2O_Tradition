@@ -1,10 +1,13 @@
 <?php
-session_start();require_once '../shared/config.php';requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
+session_start();require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
 $message='';$error='';
 $uploadDir=dirname(__DIR__).'/uploads/vendor-verification/';$uploadWeb='../uploads/vendor-verification/';
 if(!is_dir($uploadDir)) @mkdir($uploadDir,0755,true);
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  o2oRequireCsrf();
   $type=$_POST['verification_type']??'identity';
   $allowed=['identity','business','address'];
   if(!in_array($type,$allowed,true)) $error='Please select a valid verification type.';
@@ -37,6 +40,7 @@ $st=$db->prepare("SELECT * FROM vendor_verifications WHERE vendor_id=? ORDER BY 
 <main class="main"><h1>Vendor Verification</h1><p style="color:#666">Submit supporting documents for review. A verified badge is shown only after verification is approved.</p>
 <?php if($message):?><div class="notice">✓ <?=htmlspecialchars($message)?></div><?php endif;?><?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
 <div class="card"><h2>Submit Verification</h2><form method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <div class="row"><label class="label">Verification type</label><select class="select" name="verification_type"><option value="identity">Identity</option><option value="business">Business</option><option value="address">Address</option></select></div>
 <div class="row"><label class="label">Document</label><input class="input" type="file" name="document" accept="application/pdf,image/jpeg,image/png" required><small style="color:#777">PDF, JPG or PNG · max 5MB</small></div>
 <button class="button" type="submit">Submit for Review</button></form></div>
