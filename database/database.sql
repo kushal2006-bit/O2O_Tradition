@@ -363,7 +363,9 @@ CREATE TABLE IF NOT EXISTS admin_actions (
     target_type VARCHAR(50) NOT NULL,
     target_id INT,
     notes TEXT,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_admin_actions_admin_created (admin_id, created_at),
+    FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
 );
 
 -- This file intentionally contains schema only.
