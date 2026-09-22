@@ -33,6 +33,7 @@ if(!in_array($mime,$allowed,true)){
     exit('Not found');
 }
 
+header('X-Content-Type-Options: nosniff');
 header('Content-Type: '.$mime);
 header('Content-Length: '.filesize($path));
 header('Content-Disposition: inline; filename="'.basename($path).'"');
