@@ -12,7 +12,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&!$error){
     $db->beginTransaction();
     try{
       $lock=$db->prepare("SELECT * FROM seller_listings WHERE id=? AND status='active' FOR UPDATE");$lock->execute([$id]);$locked=$lock->fetch();
-      if(!$locked||$locked['seller_id']===$buyerId)throw new Exception('This listing is no longer available.');
+      if(!$locked || (int)$locked['seller_id']===$buyerId)throw new Exception('This listing is no longer available.');
       $ins=$db->prepare("INSERT INTO seller_purchase_orders (listing_id,buyer_id,seller_id,total_amount,shipping_address) VALUES (?,?,?,?,?)");
       $ins->execute([$id,$buyerId,$locked['seller_id'],$locked['price'],$address]);
       $db->prepare("UPDATE seller_listings SET status='sold' WHERE id=?")->execute([$id]);
