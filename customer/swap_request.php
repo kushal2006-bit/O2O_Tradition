@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
 $customerId=(int)$_SESSION['customer_id'];
@@ -21,6 +23,7 @@ $ownStmt->execute([$customerId]);
 $ownListings=$ownStmt->fetchAll();
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  o2oRequireCsrf();
   $offeredId=(int)($_POST['offered_swap_listing_id']??0);
   $message=trim($_POST['message']??'');
 
