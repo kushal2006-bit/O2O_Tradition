@@ -27,14 +27,44 @@ $customerStmt = $db->prepare("SELECT name, phone, pincode, address FROM customer
 $customerStmt->execute([$customerId]);
 $customer = $customerStmt->fetch();
 
+$sizeStmt = $db->prepare("SELECT id, size_label FROM product_sizes WHERE item_id=? AND available=1 ORDER BY size_label");
+$sizeStmt->execute([$itemId]);
+$sizes = $sizeStmt->fetchAll();
+$selectedSizeId = (int)($_POST['product_size_id'] ?? $_GET['size_id'] ?? 0);
+if (!$selectedSizeId && $sizes) {
+    $profileStmt = $db->prepare("SELECT chest, waist, hip FROM size_profiles WHERE customer_id=? LIMIT 1");
+    $profileStmt->execute([$customerId]);
+    $profile = $profileStmt->fetch();
+    if ($profile) {
+        $bestDiff = PHP_INT_MAX;
+        foreach ($sizes as $size) {
+            $measurementStmt = $db->prepare("SELECT chest, waist, hip FROM product_sizes WHERE id=? AND item_id=? AND available=1");
+            $measurementStmt->execute([(int)$size['id'], $itemId]);
+            $measurement = $measurementStmt->fetch();
+            if (!$measurement) continue;
+            $diff = 0; $used = false;
+            foreach (['chest','waist','hip'] as $m) {
+                if ($profile[$m] !== null && $measurement[$m] !== null) {
+                    $diff += abs((float)$profile[$m] - (float)$measurement[$m]); $used = true;
+                }
+            }
+            if ($used && $diff < $bestDiff) { $bestDiff = $diff; $selectedSizeId = (int)$size['id']; }
+        }
+    }
+}
 $error = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     o2oRequireCsrf();
     $address = trim($_POST['shipping_address'] ?? '');
     $paymentMethod = $_POST['payment_method'] ?? 'Cash on Delivery';
+    $productSizeId = (int)($_POST['product_size_id'] ?? 0);
 
     if ($address === '') {
         $error = 'Delivery address is required.';
+    } elseif ($sizes && !$productSizeId) {
+        $error = 'Please select a size for this item.';
+    } elseif ($productSizeId && !array_filter($sizes, fn($size) => (int)$size['id'] === $productSizeId)) {
+        $error = 'Please select an available size for this item.';
     } elseif ($paymentMethod !== 'Cash on Delivery') {
         $error = 'Only Cash on Delivery is connected in this development step.';
     } else {
@@ -60,9 +90,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $orderId = (int)$db->lastInsertId();
 
             $line = $db->prepare("INSERT INTO purchase_order_items
-                (order_id, item_id, quantity, unit_price, total_price)
-                VALUES (?, ?, 1, ?, ?)");
-            $line->execute([$orderId, $itemId, $total, $total]);
+                (order_id, item_id, product_size_id, quantity, unit_price, total_price)
+                VALUES (?, ?, ?, 1, ?, ?)");
+            $line->execute([$orderId, $itemId, $productSizeId ?: null, $total, $total]);
 
             $disable = $db->prepare("UPDATE product_modes SET available=0 WHERE item_id=? AND mode='buy'");
             $disable->execute([$itemId]);
@@ -104,6 +134,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <form method="POST">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <input type="hidden" name="item_id" value="<?=$itemId?>">
+<?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div class="muted">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="shipping_address" required><?=htmlspecialchars($_POST['shipping_address'] ?? $customer['address'] ?? '')?></textarea></div>
 <div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option></select></div>
 <button class="btn" type="submit">Place Buy Order</button>
