@@ -87,6 +87,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
 
 <form class="form" method="POST" enctype="multipart/form-data">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <h2 style="font:28px Georgia,serif;margin:0 0 18px">List an Item for Swap</h2>
 <div class="grid">
 <div class="row"><label>Item title *</label><input name="title" maxlength="150" required placeholder="e.g. Blue Paithani Saree" value="<?=htmlspecialchars($_POST['title']??'')?>"></div>
