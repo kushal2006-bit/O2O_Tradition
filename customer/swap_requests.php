@@ -51,12 +51,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $upList=$db->prepare("UPDATE swap_listings SET status='matched' WHERE id IN (?,?)");
       $upList->execute([$request['swap_listing_id'],$request['offered_swap_listing_id']]);
 
-      $reject=$db->prepare("UPDATE swap_requests SET status='rejected' WHERE swap_listing_id=? AND status='pending' AND id<>?");
-      $reject->execute([$request['swap_listing_id'],$requestId]);
+      $pendingStmt=$db->prepare("SELECT id,requester_id FROM swap_requests WHERE status='pending' AND id<>? AND (swap_listing_id IN (?,?) OR offered_swap_listing_id IN (?,?)) FOR UPDATE");
+      $pendingStmt->execute([$requestId,$request['swap_listing_id'],$request['offered_swap_listing_id'],$request['swap_listing_id'],$request['offered_swap_listing_id']]);
+      $superseded=$pendingStmt->fetchAll();
+
+      $reject=$db->prepare("UPDATE swap_requests SET status='rejected' WHERE status='pending' AND id<>? AND (swap_listing_id IN (?,?) OR offered_swap_listing_id IN (?,?))");
+      $reject->execute([$requestId,$request['swap_listing_id'],$request['offered_swap_listing_id'],$request['swap_listing_id'],$request['offered_swap_listing_id']]);
 
       $db->commit();
       notifySwap($db,(int)$request['requester_id'],'Swap accepted','Your swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).' was accepted. Both items are now matched.');
       notifySwap($db,(int)$request['target_owner'],'Swap accepted','You accepted swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).'. Both items are now matched.');
+      foreach($superseded as $pendingRequest){
+        notifySwap($db,(int)$pendingRequest['requester_id'],'Swap request unavailable','Swap request #'.str_pad((int)$pendingRequest['id'],6,'0',STR_PAD_LEFT).' is no longer available because one of the offered items was matched in another swap.');
+      }
       $message='Swap accepted. Both items are now marked as matched.';
     } elseif($action==='reject'){
       if(!$isOwner) throw new RuntimeException('Only the owner of the requested item can reject it.');
