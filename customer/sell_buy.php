@@ -1,8 +1,6 @@
 <?php
 session_start();require_once '../shared/config.php';
 require_once '../shared/security.php';
-o2oCsrfToken();
-require_once '../shared/security.php';
 o2oCsrfToken();requireLogin('customer','login.php');$db=getDB();$buyerId=(int)$_SESSION['customer_id'];
 $id=(int)($_GET['id']??0);$error='';$message='';
 $st=$db->prepare("SELECT sl.*,c.name seller_name,c.phone seller_phone,c.address seller_address FROM seller_listings sl JOIN customers c ON c.id=sl.seller_id WHERE sl.id=? AND sl.status='active'");
