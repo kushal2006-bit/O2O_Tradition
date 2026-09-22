@@ -2,6 +2,7 @@
 session_start();require_once '../shared/config.php';
 require_once '../shared/security.php';
 o2oCsrfToken();requireLogin('vendor','login.php');$vendorId=$_SESSION['vendor_id'];$storeName=$_SESSION['vendor_name'];$db=getDB();
+if($_SERVER['REQUEST_METHOD']==='POST'){ o2oRequireCsrf(); }
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['toggle_id'])){$id=intval($_POST['toggle_id']);$db->prepare("UPDATE items SET available=NOT available WHERE id=? AND vendor_id=?")->execute([$id,$vendorId]);header('Location: inventory.php');exit;}
 if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['delete_id'])){$id=intval($_POST['delete_id']);$db->prepare("DELETE FROM items WHERE id=? AND vendor_id=?")->execute([$id,$vendorId]);header('Location: inventory.php');exit;}
 $st=$db->prepare("SELECT i.*,(SELECT COUNT(*) FROM orders o WHERE o.item_id=i.id) order_count FROM items i WHERE i.vendor_id=? ORDER BY i.created_at DESC");$st->execute([$vendorId]);$items=$st->fetchAll();
