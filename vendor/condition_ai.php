@@ -31,8 +31,15 @@ function runConditionAI(PDO $db,int $reportId,int $vendorId): array {
 if($_SERVER['REQUEST_METHOD']==='POST'){
   o2oRequireCsrf();
   if(($_POST['action']??'')==='analyze'){
-    $reportId=(int)($_POST['report_id']??0);$st=$db->prepare("SELECT id FROM condition_ai_reports WHERE id=? AND vendor_id=? LIMIT 1");$st->execute([$reportId,$vendorId]);
-    if(!$st->fetch())$error='AI report not found.';else{$db->prepare("UPDATE condition_ai_reports SET status='processing' WHERE id=? AND vendor_id=?")->execute([$reportId,$vendorId]);[$ok,$msg]=runConditionAI($db,$reportId,$vendorId);if(!$ok){$db->prepare("UPDATE condition_ai_reports SET status='failed',notes=? WHERE id=? AND vendor_id=?")->execute([$msg,$reportId,$vendorId]);$error=$msg;}else$message=$msg;}
+    $reportId=(int)($_POST['report_id']??0);$st=$db->prepare("SELECT id,status FROM condition_ai_reports WHERE id=? AND vendor_id=? LIMIT 1");$st->execute([$reportId,$vendorId]);$report=$st->fetch();
+    if(!$report)$error='AI report not found.';
+    elseif(!in_array($report['status'],['queued','failed'],true))$error='This AI report is already being processed or has completed.';
+    else{
+      $claim=$db->prepare("UPDATE condition_ai_reports SET status='processing' WHERE id=? AND vendor_id=? AND status IN ('queued','failed')");
+      $claim->execute([$reportId,$vendorId]);
+      if($claim->rowCount()!==1)$error='This AI report was already claimed. Refresh the page and try again.';
+      else{[$ok,$msg]=runConditionAI($db,$reportId,$vendorId);if(!$ok){$db->prepare("UPDATE condition_ai_reports SET status='failed',notes=? WHERE id=? AND vendor_id=? AND status='processing'")->execute([$msg,$reportId,$vendorId]);$error=$msg;}else$message=$msg;}
+    }
   } else {
   $itemId=(int)($_POST['item_id']??0);
   $st=$db->prepare("SELECT id,name,image_path FROM items WHERE id=? AND vendor_id=? LIMIT 1");$st->execute([$itemId,$vendorId]);$item=$st->fetch();
