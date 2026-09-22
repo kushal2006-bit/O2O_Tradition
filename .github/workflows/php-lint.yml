@@ -1,0 +1,37 @@
+name: PHP Lint
+
+on:
+  push:
+    branches: [main, development]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, fileinfo
+          tools: none
+
+      - name: Lint PHP files
+        shell: bash
+        run: |
+          set -e
+          files=$(find . -type f -name '*.php' -not -path './.git/*')
+          if [ -z "$files" ]; then
+            echo "No PHP files found."
+            exit 0
+          fi
+          failed=0
+          while IFS= read -r file; do
+            echo "Linting $file"
+            php -l "$file" || failed=1
+          done <<< "$files"
+          exit "$failed"
