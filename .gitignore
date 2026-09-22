@@ -20,3 +20,14 @@ Thumbs.db
 # PHP / OS generated files
 *.log
 *.tmp
+
+uploads/sell/*
+!uploads/sell/.gitkeep
+uploads/swap/*
+!uploads/swap/.gitkeep
+uploads/condition-ai/*
+!uploads/condition-ai/.gitkeep
+uploads/tryon/*
+!uploads/tryon/.gitkeep
+uploads/vendor-verification/*
+!uploads/vendor-verification/.gitkeep
