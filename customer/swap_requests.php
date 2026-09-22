@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
 $customerId=(int)$_SESSION['customer_id'];
@@ -9,6 +11,7 @@ $message='';
 $error='';
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  o2oRequireCsrf();
   $requestId=(int)($_POST['request_id']??0);
   $action=$_POST['action']??'';
 
@@ -121,7 +124,9 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <div class="top"><div><div class="name">Request #<?=str_pad($r['id'],6,'0',STR_PAD_LEFT)?></div><div class="meta">From <?=htmlspecialchars($r['requester_name'])?> · <?=date('d M Y, h:i A',strtotime($r['created_at']))?></div></div><div class="status"><?=htmlspecialchars(ucfirst($r['status']))?></div></div>
 <div class="exchange"><div class="side"><h3>Your item</h3><div><?=htmlspecialchars($r['target_title'])?></div></div><div class="side"><h3>Their offered item</h3><div><?=htmlspecialchars($r['offered_title']??'Unavailable')?></div></div></div>
 <?php if($r['message']):?><div class="meta">Message: <?=htmlspecialchars($r['message'])?></div><?php endif;?>
-<?php if($r['status']==='pending'):?><div class="actions" style="margin-top:14px"><form method="POST"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="accept"><button class="action" type="submit">Accept Swap</button></form><form method="POST"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="reject"><button class="action reject" type="submit">Reject</button></form></div><?php endif;?>
+<?php if($r['status']==='pending'):?><div class="actions" style="margin-top:14px"><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="accept"><button class="action" type="submit">Accept Swap</button></form><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="reject"><button class="action reject" type="submit">Reject</button></form></div><?php endif;?>
 </div>
 <?php endforeach;else:?><div class="empty">No one has requested one of your swap items yet.</div><?php endif;?>
 </section>
@@ -132,7 +137,8 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <div class="top"><div><div class="name">Request #<?=str_pad($r['id'],6,'0',STR_PAD_LEFT)?></div><div class="meta">To <?=htmlspecialchars($r['owner_name'])?> · <?=date('d M Y, h:i A',strtotime($r['created_at']))?></div></div><div class="status"><?=htmlspecialchars(ucfirst($r['status']))?></div></div>
 <div class="exchange"><div class="side"><h3>Their item</h3><div><?=htmlspecialchars($r['target_title'])?></div></div><div class="side"><h3>Your offered item</h3><div><?=htmlspecialchars($r['offered_title']??'Unavailable')?></div></div></div>
 <?php if($r['message']):?><div class="meta">Your message: <?=htmlspecialchars($r['message'])?></div><?php endif;?>
-<?php if($r['status']==='pending'):?><form method="POST" style="margin-top:14px"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="cancel"><button class="action cancel" type="submit">Cancel Request</button></form><?php endif;?>
+<?php if($r['status']==='pending'):?><form method="POST" style="margin-top:14px">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="request_id" value="<?=$r['id']?>"><input type="hidden" name="action" value="cancel"><button class="action cancel" type="submit">Cancel Request</button></form><?php endif;?>
 </div>
 <?php endforeach;else:?><div class="empty">You have not sent any swap requests yet.</div><?php endif;?>
 </section>
