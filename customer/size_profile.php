@@ -1,6 +1,9 @@
 <?php
-session_start();require_once '../shared/config.php';requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];$message='';$error='';
+session_start();require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];$message='';$error='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  o2oRequireCsrf();
  $height=(float)($_POST['height']??0);$chest=(float)($_POST['chest']??0);$waist=(float)($_POST['waist']??0);$hip=(float)($_POST['hip']??0);$shoulder=(float)($_POST['shoulder']??0);$sleeve=(float)($_POST['sleeve']??0);$shoe=trim($_POST['shoe_size']??'');
  if($height<0||$chest<0||$waist<0||$hip<0||$shoulder<0||$sleeve<0)$error='Measurements cannot be negative.';
  else{$st=$db->prepare("INSERT INTO size_profiles(customer_id,height,chest,waist,hip,shoulder,sleeve,shoe_size) VALUES(?,?,?,?,?,?,?,?) ON DUPLICATE KEY UPDATE height=VALUES(height),chest=VALUES(chest),waist=VALUES(waist),hip=VALUES(hip),shoulder=VALUES(shoulder),sleeve=VALUES(sleeve),shoe_size=VALUES(shoe_size)");$st->execute([$customerId,$height?:null,$chest?:null,$waist?:null,$hip?:null,$shoulder?:null,$sleeve?:null,$shoe?:null]);$message='Size profile saved.';}
