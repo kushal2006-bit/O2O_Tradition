@@ -64,7 +64,7 @@ O2O_Tradition/
 2. Import `database/database.sql`.
 3. If needed for development, import `database/seed_demo.sql`.
 4. Copy `shared/config.example.php` to `shared/config.php`.
-5. Set database values in `shared/config.php) or provide `O2O_DB_HOST`, `O2O_DB_NAME`, `O2O_DB_USER`, and `O2O_DB_PASS`.
+5. Set database values in `shared/config.php or provide `O2O_DB_HOST`, `O2O_DB_NAME`, `O2O_DB_USER`, and `O2O_DB_PASS`.
 6. Ensure upload folders are writable by PHP.
 7. For virtual try-on, configure `HF_TOKEN` as a server environment variable or use a private PHP secret file outside the public web root.
 8. Open the customer or vendor login page through a PHP web server.
