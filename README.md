@@ -71,6 +71,12 @@ O2O_Tradition/
 
 ## Security
 
+- Session cookies use HttpOnly, Secure-on-HTTPS, and SameSite=Lax settings.
+- Authentication regenerates the session ID after successful login.
+- State-changing marketplace forms use CSRF protection.
+- Private media/document endpoints require authorization and send restrictive response headers.
+- Uploaded images are validated by extension and detected MIME type where applicable.
+
 - Real credentials and API tokens are never committed to GitHub.
 - The live hosting `config.php` is intentionally excluded.
 - The original ZIP's `.git` metadata and packaging artifacts are not imported.
