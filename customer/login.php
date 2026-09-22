@@ -1,6 +1,14 @@
 <?php
+session_set_cookie_params([
+    'httponly' => true,
+    'secure' => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'samesite' => 'Lax'
+]);
 session_start();
 require_once '../shared/config.php';
+
+if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); }
+
 
 if (isLoggedIn('customer')) {
     header('Location: home.php');
@@ -11,6 +19,8 @@ $error = '';
 $success = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) { $error = 'Invalid form session. Please refresh and try again.'; }
+    else {
     $action = $_POST['action'] ?? 'login';
 
     if ($action === 'login') {
@@ -24,6 +34,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $customer = $stmt->fetch();
 
             if ($customer && password_verify($password, $customer['password'])) {
+                session_regenerate_id(true);
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                 $_SESSION['customer_id'] = $customer['id'];
                 $_SESSION['customer_name'] = $customer['name'];
                 $_SESSION['customer_pincode'] = $customer['pincode'];
@@ -53,6 +65,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
                 $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password) VALUES (?,?,?,?,?,?)");
                 $stmt->execute([$name, $email, $phone, $pincode, $address, $hash]);
+                session_regenerate_id(true);
+                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                 $_SESSION['customer_id'] = $db->lastInsertId();
                 $_SESSION['customer_name'] = $name;
                 $_SESSION['customer_pincode'] = $pincode;
@@ -62,6 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $error = 'Please fill all required fields.';
         }
+    }
     }
 }
 ?>
@@ -318,6 +333,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="form-title">Welcome Back</div>
       <div class="form-subtitle">Sign in to browse and rent attire</div>
       <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
         <input type="hidden" name="action" value="login">
         <div class="field">
           <label>Email Address</label>
@@ -336,6 +352,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       <div class="form-title">Create Account</div>
       <div class="form-subtitle">Join Vasanam today</div>
       <form method="POST">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
         <input type="hidden" name="action" value="register">
         <div class="field-row">
           <div class="field">
