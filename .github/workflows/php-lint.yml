@@ -3,11 +3,11 @@ name: PHP Lint
 on:
   push:
     branches: [main, development]
-    paths-ignore: ['lint-results.txt']
   pull_request:
     branches: [main]
+
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   lint:
@@ -26,27 +26,12 @@ jobs:
       - name: Lint PHP files
         shell: bash
         run: |
-          set -e
-          files=$(find . -type f -name '*.php' -not -path './.git/*')
-          if [ -z "$files" ]; then
-            echo "No PHP files found."
-            exit 0
-          fi
+          set -euo pipefail
           failed=0
-          : > lint-results.txt
           while IFS= read -r file; do
             echo "Linting $file"
-            if ! php -l "$file" 2>&1 | tee -a lint-results.txt; then
+            if ! php -l "$file"; then
               failed=1
             fi
-          done <<< "$files"
-          if [ "$failed" -ne 0 ]; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add lint-results.txt
-            git commit -m "chore: record PHP lint failures" || true
-            git push || true
-            exit 1
-          fi
-          rm -f lint-results.txt
-          exit 0
+          done < <(find . -type f -name '*.php' -not -path './.git/*' | sort)
+          exit "$failed"
