@@ -11,9 +11,24 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['action'])){o2oRequireCsrf(
 $buyAction=$_POST['buy_action']??null;
 if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
   $purchaseId=intval($_POST['purchase_id']??0);
-  $allowed=['packed','shipped','delivered','cancelled'];
-  if($purchaseId>0&&in_array($buyAction,$allowed,true)){
-    $q=$db->prepare("SELECT customer_id FROM purchase_orders WHERE id=? AND vendor_id=?");$q->execute([$purchaseId,$vendorId]);$buyer=$q->fetch();$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=?")->execute([$buyAction,$purchaseId,$vendorId]);if($buyer){$labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];$label=$labels[$buyAction]??$buyAction;addCustomerNotification($db,(int)$buyer['customer_id'],'buy_status','Buy order updated','Your buy order #'.str_pad($purchaseId,6,'0',STR_PAD_LEFT).' is now '.$label.'.');}
+  $allowedTransitions=[
+    'confirmed'=>['packed','cancelled'],
+    'packed'=>['shipped','cancelled'],
+    'shipped'=>['delivered'],
+    'delivered'=>[],
+    'cancelled'=>[]
+  ];
+  if($purchaseId>0&&isset($allowedTransitions[$buyAction])){
+    $q=$db->prepare("SELECT customer_id,order_status FROM purchase_orders WHERE id=? AND vendor_id=?");
+    $q->execute([$purchaseId,$vendorId]);
+    $buyer=$q->fetch();
+    if($buyer&&in_array($buyAction,$allowedTransitions[$buyer['order_status']]??[],true)){
+      $db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=?")
+        ->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
+      $labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];
+      $label=$labels[$buyAction]??$buyAction;
+      addCustomerNotification($db,(int)$buyer['customer_id'],'buy_status','Buy order updated','Your buy order #'.str_pad($purchaseId,6,'0',STR_PAD_LEFT).' is now '.$label.'.');
+    }
   }
   header('Location: dashboard.php');exit;
 }
