@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     customer_id INT NOT NULL,
     item_id INT NOT NULL,
+    product_size_id INT NULL,
     vendor_id INT NOT NULL,
     delivery_address TEXT NOT NULL,
     payment_method ENUM('Cash on Delivery') NOT NULL,
@@ -65,6 +66,7 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE,
+    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL,
     FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
 );
 
@@ -105,11 +107,13 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_id INT NOT NULL,
     item_id INT NOT NULL,
+    product_size_id INT NULL,
     quantity INT NOT NULL DEFAULT 1,
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
+    FOREIGN KEY (product_size_id) REFERENCES product_sizes(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS seller_listings (
