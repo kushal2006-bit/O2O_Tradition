@@ -23,16 +23,35 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $payment=$_POST['payment_method']??'';
     $pickup=$_POST['pickup_date']??'';
     $return=$_POST['return_date']??'';
-    if ($address && $payment && $pickup && $return) {
-        $days=(strtotime($return)-strtotime($pickup))/86400;
-        if ($days<1) $days=1;
-        $total=$days*$item['rent_per_day'];
-        $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,status) VALUES (?,?,?,?,?,?,?,?,'new')");
-        $stmt->execute([$_SESSION['customer_id'],$item['id'],$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
-        header('Location: order_success.php?order_id='.$db->lastInsertId());
-        exit;
+    $allowedPayments=['Cash on Delivery','Online Payment','UPI'];
+    if (!$address || !$payment || !$pickup || !$return) {
+        $error='Please fill in all required fields.';
+    } elseif (!in_array($payment,$allowedPayments,true)) {
+        $error='Please select a valid payment method.';
+    } elseif (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$pickup) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$return) || $pickup < date('Y-m-d') || $return <= $pickup) {
+        $error='Please choose valid pickup and return dates.';
+    } else {
+        $db->beginTransaction();
+        try {
+            $lock=$db->prepare("SELECT id FROM items WHERE id=? AND available=1 FOR UPDATE");
+            $lock->execute([$item['id']]);
+            if(!$lock->fetch()) throw new RuntimeException('This item is no longer available.');
+            $overlap=$db->prepare("SELECT id FROM orders WHERE item_id=? AND status IN ('new','in_progress') AND pickup_date < ? AND return_date > ? LIMIT 1 FOR UPDATE");
+            $overlap->execute([$item['id'],$return,$pickup]);
+            if($overlap->fetch()) throw new RuntimeException('This item is already booked for part of those dates.');
+            $days=(strtotime($return)-strtotime($pickup))/86400;
+            $total=$days*$item['rent_per_day'];
+            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,status) VALUES (?,?,?,?,?,?,?,?,'new')");
+            $stmt->execute([$_SESSION['customer_id'],$item['id'],$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
+            $orderId=(int)$db->lastInsertId();
+            $db->commit();
+            header('Location: order_success.php?order_id='.$orderId);
+            exit;
+        } catch(Throwable $e) {
+            if($db->inTransaction()) $db->rollBack();
+            $error=$e->getMessage()==='This item is already booked for part of those dates.'?$e->getMessage():'Could not place the rental order. Please try again.';
+        }
     }
-    $error='Please fill in all required fields.';
 }
 $today=date('Y-m-d');
 $tomorrow=date('Y-m-d',strtotime('+1 day'));
