@@ -28,6 +28,11 @@ $vendorSql = "SELECT v.*,
     FROM vendors v WHERE 1=1";
 $vendorParams = [];
 
+if ($mode !== 'sell' && $mode !== 'swap') {
+    $vendorMode = $mode === 'buy' ? 'buy' : 'rent';
+    $vendorSql = str_replace("pm1.mode = 'rent'", "pm1.mode = '" . $vendorMode . "'", $vendorSql);
+}
+
 if ($pincode) {
     $vendorSql .= " AND v.pincode LIKE ?";
     $vendorParams[] = substr($pincode, 0, 3) . '%';
@@ -38,11 +43,14 @@ $vendorStmt->execute($vendorParams);
 $vendors = $vendorStmt->fetchAll();
 
 if (empty($vendors)) {
-    $allStmt = $db->query("SELECT v.*,
+    $allMode = $mode === 'buy' ? 'buy' : 'rent';
+    $allSql = "SELECT v.*,
         (SELECT COUNT(*) FROM items i WHERE i.vendor_id = v.id AND i.available = 1
         AND (NOT EXISTS (SELECT 1 FROM product_modes pm0 WHERE pm0.item_id = i.id)
              OR EXISTS (SELECT 1 FROM product_modes pm1 WHERE pm1.item_id = i.id AND pm1.mode = 'rent' AND pm1.available = 1))) AS item_count
-        FROM vendors v ORDER BY v.store_name");
+        FROM vendors v ORDER BY v.store_name";
+    $allSql = str_replace("pm1.mode = 'rent'", "pm1.mode = '" . $allMode . "'", $allSql);
+    $allStmt = $db->query($allSql);
     $vendors = $allStmt->fetchAll();
     $nearbyMsg = $pincode
         ? "No stores matched your pincode. Showing available stores."
@@ -94,7 +102,7 @@ $modeDescriptions = [
     'all'  => ['title' => 'Explore Traditional Wear', 'subtitle' => 'Rent today and discover the Buy, Sell & Swap marketplace as each mode launches.'],
     'rent' => ['title' => 'Rent for Your Occasion', 'subtitle' => 'Browse the existing rental catalogue and book attire for your dates.'],
     'buy'  => ['title' => 'Buy Traditional Wear', 'subtitle' => 'Browse items currently listed for purchase and place a Cash on Delivery order.'],
-    'sell' => ['title' => 'Sell Your Traditional Wear', 'subtitle' => 'Seller listings are part of the marketplace foundation and will be activated next.'],
+    'sell' => ['title' => 'Sell Your Traditional Wear', 'subtitle' => 'List your pre-owned traditional wear for local marketplace buyers.'],
     'swap' => ['title' => 'Swap with the Community', 'subtitle' => 'List an item, discover community offers, and send or manage swap requests.'],
 ];
 
