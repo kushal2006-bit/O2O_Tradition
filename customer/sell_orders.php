@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
 $sellerId=(int)$_SESSION['customer_id'];
@@ -17,7 +19,7 @@ $allowedTransitions=[
   'cancelled'=>[]
 ];
 
-if($_SERVER['REQUEST_METHOD']==='POST'){
+if($_SERVER['REQUEST_METHOD']==='POST'){o2oRequireCsrf();
   $orderId=(int)($_POST['order_id']??0);
   $newStatus=$_POST['new_status']??'';
 
@@ -129,7 +131,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}
 
       <?php if($o['order_status']==='confirmed'): ?>
         <div class="actions">
-          <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="packed"><button class="action" type="submit">Mark Packed</button></form>
+          <form method="POST">\n<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="packed"><button class="action" type="submit">Mark Packed</button></form>
           <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="cancelled"><button class="action cancel" type="submit">Cancel Sale</button></form>
         </div>
       <?php elseif($o['order_status']==='packed'): ?>
