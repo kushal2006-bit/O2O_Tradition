@@ -1,6 +1,8 @@
 <?php
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/security.php';
+o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
 $customerId=(int)$_SESSION['customer_id'];
@@ -11,6 +13,7 @@ $uploadDir=dirname(__DIR__).'/uploads/sell/';
 $uploadWeb='../uploads/sell/';
 if(!is_dir($uploadDir)) @mkdir($uploadDir,0755,true);
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  o2oRequireCsrf();
   $title=trim($_POST['title']??'');
   $description=trim($_POST['description']??'');
   $price=(float)($_POST['price']??0);
