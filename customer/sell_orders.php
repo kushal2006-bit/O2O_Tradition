@@ -131,17 +131,22 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}
 
       <?php if($o['order_status']==='confirmed'): ?>
         <div class="actions">
-          <form method="POST">\n<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="packed"><button class="action" type="submit">Mark Packed</button></form>
-          <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="cancelled"><button class="action cancel" type="submit">Cancel Sale</button></form>
+          <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">\n<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="packed"><button class="action" type="submit">Mark Packed</button></form>
+          <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="cancelled"><button class="action cancel" type="submit">Cancel Sale</button></form>
         </div>
       <?php elseif($o['order_status']==='packed'): ?>
         <div class="actions">
-          <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="shipped"><button class="action" type="submit">Mark Shipped</button></form>
-          <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="cancelled"><button class="action cancel" type="submit">Cancel Sale</button></form>
+          <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="shipped"><button class="action" type="submit">Mark Shipped</button></form>
+          <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="cancelled"><button class="action cancel" type="submit">Cancel Sale</button></form>
         </div>
       <?php elseif($o['order_status']==='shipped'): ?>
         <div class="actions">
-          <form method="POST"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="delivered"><button class="action" type="submit">Mark Delivered</button></form>
+          <form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="hidden" name="new_status" value="delivered"><button class="action" type="submit">Mark Delivered</button></form>
         </div>
       <?php elseif($o['order_status']==='delivered'): ?>
         <div class="muted">This sale is complete.</div>
