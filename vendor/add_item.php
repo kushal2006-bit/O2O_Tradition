@@ -95,7 +95,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 }
 
                 $db->commit();
-                $success = "Item "{$name}" added successfully!";
+                $success = "Item \"{$name}\" added successfully!";
             } catch (Throwable $e) {
                 if ($db->inTransaction()) {
                     $db->rollBack();
