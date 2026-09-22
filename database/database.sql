@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS orders (
     item_id INT NOT NULL,
     vendor_id INT NOT NULL,
     delivery_address TEXT NOT NULL,
-    payment_method ENUM('Cash on Delivery','Online Payment','UPI') NOT NULL,
+    payment_method ENUM('Cash on Delivery') NOT NULL,
     pickup_date DATE NOT NULL,
     return_date DATE NOT NULL,
     actual_return_date DATE,
