@@ -96,6 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $preCreditTotal = round($subtotal + $deliveryCharge,2);
             $creditApplied = $useRewardCredit ? o2oConsumeRewardCredits($db, $customerId, $preCreditTotal) : 0.0;
             $payableTotal = max(0, round($preCreditTotal - $creditApplied, 2));
+            if ($paymentMethod==='Online Payment' && $payableTotal<=0) throw new RuntimeException('No online payment is required because reward credit covers the total.');
             $gateway = null;
             if ($paymentMethod === 'Online Payment') {
                 $gateway = o2oCreateRazorpayOrder($payableTotal, 'O2O-B-'.bin2hex(random_bytes(6)));
