@@ -143,3 +143,7 @@ requireText('customer/login.php', "account_status");
 requireText('vendor/customers.php', "Customers");
 requireText('vendor/reviews.php', "Ratings & Reviews");
 requireText('vendor/dashboard.php', 'customers.php');
+requireText('database/migrations/027_wishlist_alerts.sql', "price_alert");
+requireText('database/migrations/028_wishlist_alert_state.sql', "last_notified_available");
+requireText('customer/wishlist.php', "Availability alert");
+requireText('cron/wishlist_alerts.php', "price_drop");
