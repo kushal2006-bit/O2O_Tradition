@@ -117,3 +117,7 @@ requireText('customer/fit.php', "Combined measurement difference");
 
 requireText('vendor/dashboard.php', "payment_method='Cash on Delivery' OR payment_status='paid'");
 requireText('vendor/dashboard.php', "status='failed',failure_reason='Purchase order cancelled before payment confirmation.'");
+
+requireText('vendor/trust_records.php', "after-return report can only be recorded after the rental is returned");
+requireText('vendor/trust_records.php', "Completed sanitization requires a returned and inspected rental");
+requireText('customer/item.php', "itemAverageRating");
