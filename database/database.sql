@@ -278,6 +278,7 @@ CREATE TABLE IF NOT EXISTS wishlists (
     availability_alert TINYINT(1) NOT NULL DEFAULT 1,
     price_alert TINYINT(1) NOT NULL DEFAULT 1,
     last_notified_price DECIMAL(10,2) NULL,
+    last_notified_available TINYINT(1) NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_wishlist (customer_id, item_id),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
