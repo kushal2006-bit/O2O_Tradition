@@ -6,6 +6,7 @@ session_set_cookie_params([
 ]);
 session_start();
 require_once '../shared/config.php';
+require_once '../shared/email.php';
 
 if (empty($_SESSION['csrf_token'])) { $_SESSION['csrf_token'] = bin2hex(random_bytes(32)); }
 
@@ -34,6 +35,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $customer = $stmt->fetch();
 
             if ($customer && password_verify($password, $customer['password'])) {
+                if (!empty($customer['locked_until']) && strtotime($customer['locked_until']) > time()) { $error = 'Too many failed attempts. Please try again later.'; }
+                elseif (empty($customer['email_verified_at'])) { $error = 'Please verify your email address before signing in.'; }
+                else {
                 session_regenerate_id(true);
                 $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
                 $_SESSION['customer_id'] = $customer['id'];
@@ -41,7 +45,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $_SESSION['customer_pincode'] = $customer['pincode'];
                 header('Location: home.php');
                 exit;
+                }
             } else {
+                if ($customer) {
+                    $failed=(int)$customer['failed_login_count']+1;$locked=$failed>=5?date('Y-m-d H:i:s',time()+900):null;
+                    $db->prepare('UPDATE customers SET failed_login_count=?,locked_until=? WHERE id=?')->execute([$failed,$locked,(int)$customer['id']]);
+                }
                 $error = 'Invalid email or password.';
             }
         } else {
@@ -56,6 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['reg_password'] ?? '';
 
         if ($name && $email && $password && $pincode) {
+            if (strlen($password) < 8) { $error='Password must be at least 8 characters.'; } else {
             $db = getDB();
             $check = $db->prepare("SELECT id FROM customers WHERE email = ?");
             $check->execute([$email]);
@@ -63,18 +73,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Email already registered.';
             } else {
                 $hash = password_hash($password, PASSWORD_DEFAULT);
-                $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password) VALUES (?,?,?,?,?,?)");
-                $stmt->execute([$name, $email, $phone, $pincode, $address, $hash]);
-                session_regenerate_id(true);
-                $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-                $_SESSION['customer_id'] = $db->lastInsertId();
-                $_SESSION['customer_name'] = $name;
-                $_SESSION['customer_pincode'] = $pincode;
-                header('Location: home.php');
-                exit;
+                $token=bin2hex(random_bytes(32));
+                $tokenHash=hash('sha256',$token);
+                $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password, verification_token_hash, verification_expires_at) VALUES (?,?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                $stmt->execute([$name, $email, $phone, $pincode, $address, $hash, $tokenHash]);
+                if (o2oSendVerificationEmail($email,$name,$token)) { $success='Registration complete. Check your email to verify your account before signing in.'; }
+                else { $error='Registration saved, but the verification email could not be sent. Production mail settings are not configured yet.'; }
             }
         } else {
             $error = 'Please fill all required fields.';
+        }
         }
     }
     }
