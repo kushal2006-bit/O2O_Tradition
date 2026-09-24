@@ -12,6 +12,12 @@ define('DB_CHARSET', 'utf8mb4');
 // OpenAI-backed features can use OPENAI_API_KEY when enabled.
 // Free virtual try-on uses HF_TOKEN for the public IDM-VTON ZeroGPU Space.
 define('O2O_AI_MODEL', getenv('O2O_AI_MODEL') ?: 'gpt-5.6-luna');
+
+// Payment gateway configuration. Never commit real secrets.
+// Online checkout is enabled only when both Razorpay values are configured.
+define('O2O_RAZORPAY_KEY_ID', getenv('O2O_RAZORPAY_KEY_ID') ?: '');
+define('O2O_RAZORPAY_KEY_SECRET', getenv('O2O_RAZORPAY_KEY_SECRET') ?: '');
+define('O2O_RAZORPAY_WEBHOOK_SECRET', getenv('O2O_RAZORPAY_WEBHOOK_SECRET') ?: '');
 // HF_TOKEN is intentionally read directly from the environment by customer/tryon.php.
 
 function getDB() {
