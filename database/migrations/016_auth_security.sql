@@ -5,3 +5,5 @@ ALTER TABLE customers
     ADD COLUMN failed_login_count INT NOT NULL DEFAULT 0,
     ADD COLUMN locked_until TIMESTAMP NULL;
 ALTER TABLE customers ADD UNIQUE KEY uq_customers_verification_token (verification_token_hash);
+
+UPDATE customers SET email_verified_at = COALESCE(email_verified_at, created_at) WHERE email_verified_at IS NULL;
