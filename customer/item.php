@@ -64,6 +64,9 @@ $wishStmt=$db->prepare("SELECT COUNT(*) FROM wishlists WHERE customer_id=? AND i
 $reviewCountStmt = $db->prepare("SELECT COUNT(*) FROM reviews WHERE item_id = ?");
 $reviewCountStmt->execute([$itemId]);
 $reviewCount = (int)$reviewCountStmt->fetchColumn();
+$itemRatingStmt = $db->prepare("SELECT AVG(rating) average_rating FROM reviews WHERE item_id = ?");
+$itemRatingStmt->execute([$itemId]);
+$itemAverageRating = $itemRatingStmt->fetchColumn();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -181,7 +184,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
     </div>
 
     <div class="review-panel">
-      <div class="review-head"><div class="review-title">AI Review Summary</div><div class="review-muted"><?=$reviewCount?> customer review<?= $reviewCount===1?'':'s' ?></div></div>
+      <div class="review-head"><div class="review-title">AI Review Summary</div><div class="review-muted"><?php if($reviewCount): ?><?=number_format((float)$itemAverageRating,1)?> / 5 · <?php endif;?><?=$reviewCount?> customer review<?= $reviewCount===1?'':'s' ?></div></div>
       <?php if ($reviewSummary): ?>
         <div class="review-summary"><?=htmlspecialchars($reviewSummary['summary'])?></div>
         <?php $positive=json_decode($reviewSummary['positive_points'],true)?:[];$complaints=json_decode($reviewSummary['common_complaints'],true)?:[]; ?>
