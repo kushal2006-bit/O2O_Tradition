@@ -14,6 +14,7 @@ $unreadNotifications=(int)$notificationStmt->fetchColumn();
 $search = trim($_GET['search'] ?? '');
 $pincode = trim($_GET['pincode'] ?? $customerPincode);
 $mode = strtolower(trim($_GET['mode'] ?? 'all'));
+$featuredLimit = 8;
 
 $allowedModes = ['all', 'rent', 'buy', 'sell', 'swap'];
 if (!in_array($mode, $allowedModes, true)) {
@@ -116,6 +117,19 @@ $modeLabels = [
     'sell' => 'Sell',
     'swap' => 'Swap',
 ];
+
+$featuredSql = "SELECT i.id,i.name,i.description,i.image_path,i.category,i.quality,i.rent_per_day,v.store_name,v.pincode,
+    COALESCE((SELECT pm.mode FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),'rent') featured_mode,
+    COALESCE((SELECT pm.price FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),i.rent_per_day) featured_price
+    FROM items i JOIN vendors v ON v.id=i.vendor_id
+    WHERE i.available=1 AND (NOT EXISTS (SELECT 1 FROM product_modes pm0 WHERE pm0.item_id=i.id)
+      OR EXISTS (SELECT 1 FROM product_modes pm1 WHERE pm1.item_id=i.id AND pm1.available=1))";
+$featuredParams=[];
+if($search){$featuredSql.=" AND (i.name LIKE ? OR i.description LIKE ? OR i.category LIKE ?)";$featuredParams=["%$search%","%$search%","%$search%"];}
+if($pincode){$featuredSql.=" AND v.pincode LIKE ?";$featuredParams[] = substr($pincode,0,3).'%';}
+$featuredStmt=$db->prepare($featuredSql." ORDER BY i.created_at DESC, i.id DESC LIMIT ".$featuredLimit);
+$featuredStmt->execute($featuredParams);
+$featuredItems=$featuredStmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -257,6 +271,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
 <section class="hero">
   <div class="hero-content">
     <div class="kicker">Hyperlocal Traditional-Wear Marketplace</div>
+    <div style="color:rgba(255,255,255,.72);font-size:11px;margin-bottom:8px">📍 <?= $pincode ? 'Serving pincode '.htmlspecialchars($pincode) : 'Set your pincode for local discovery' ?></div>
     <div class="hero-title">Find Your <span>Perfect Tradition</span></div>
     <div class="hero-sub">Discover traditional outfits near you, choose how you want to access them, and build your look for every celebration.</div>
     <form method="GET" class="search-bar">
@@ -292,6 +307,17 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
   $homeRecStmt->execute([$customerId,$customerId,$customerId,$customerPincode,$customerPincode]);
   $homeRecommendations = $homeRecStmt->fetchAll();
   ?>
+<?php if ($featuredItems): ?>
+  <section style="margin-bottom:48px">
+    <div class="section-head"><div><div class="section-title">✦ Featured Near You</div><div class="section-note">Current catalogue picks matching your search and local area.</div></div><div class="section-note"><?=count($featuredItems)?> item(s)</div></div>
+    <div class="items-grid">
+      <?php foreach($featuredItems as $item): ?><a href="item.php?id=<?= (int)$item['id'] ?>" class="item-card">
+        <div class="item-img"><?php if($item['image_path']&&file_exists('../uploads/items/'.$item['image_path'])):?><img src="../uploads/items/<?=htmlspecialchars($item['image_path'])?>" alt="<?=htmlspecialchars($item['name'])?>"><?php else:?>✦<?php endif;?></div>
+        <div class="item-body"><div class="item-name"><?=htmlspecialchars($item['name'])?></div><div class="item-store"><?=htmlspecialchars($item['store_name'])?></div><div class="item-desc"><?=htmlspecialchars($item['description'])?></div><div class="item-meta"><div class="item-price"><?=htmlspecialchars(ucfirst($item['featured_mode']))?> · ₹<?=number_format((float)$item['featured_price'],0)?><?=$item['featured_mode']==='rent'?'/day':''?></div><div class="item-quality"><?=htmlspecialchars($item['category'])?></div></div></div>
+      </a><?php endforeach;?>
+    </div>
+  </section>
+  <?php endif; ?>
   <?php if ($homeRecommendations): ?>
   <section class="ai-card" style="margin:0 0 38px;background:linear-gradient(120deg,#21170B,#2D1F0A);">
     <div>
@@ -450,7 +476,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
     <div>
       <div class="ai-kicker">AI Style Experience</div>
       <h2>Build your complete traditional look</h2>
-      <p>AI Stylist, complete-look bundles, avatar styling, size guidance and virtual try-on are planned as the next AI layer. This entry point is intentionally a preview until those services are connected.</p>
+      <p>Your AI styling tools are live: get occasion-based recommendations, build complete looks, use size guidance, create an avatar and try outfits virtually.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;position:relative;z-index:1"><a href="stylist.php" class="ai-button">AI Stylist</a><a href="complete_look.php" class="ai-button">Complete Look</a><a href="size_profile.php" class="ai-button">Size & Fit</a><a href="avatar.php" class="ai-button">AI Avatar</a></div>
   </section>
