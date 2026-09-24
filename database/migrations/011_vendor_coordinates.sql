@@ -19,4 +19,11 @@ SET @sql = IF(@vendor_lng_exists=0,
   'SELECT 1');
 PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;
 
-CREATE INDEX IF NOT EXISTS idx_vendors_pincode ON vendors (pincode);
+SET @vendor_pincode_index_exists = (
+  SELECT COUNT(*) FROM information_schema.STATISTICS
+  WHERE TABLE_SCHEMA=@db_name AND TABLE_NAME='vendors' AND INDEX_NAME='idx_vendors_pincode'
+);
+SET @sql = IF(@vendor_pincode_index_exists=0,
+  'CREATE INDEX idx_vendors_pincode ON vendors (pincode)',
+  'SELECT 1');
+PREPARE stmt FROM @sql; EXECUTE stmt; DEALLOCATE PREPARE stmt;

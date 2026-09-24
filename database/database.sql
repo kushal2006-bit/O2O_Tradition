@@ -13,8 +13,6 @@ CREATE TABLE IF NOT EXISTS customers (
     phone VARCHAR(20),
     pincode VARCHAR(10),
     address TEXT,
-    latitude DECIMAL(10,7) NULL,
-    longitude DECIMAL(10,7) NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -27,6 +25,8 @@ CREATE TABLE IF NOT EXISTS vendors (
     phone VARCHAR(20),
     pincode VARCHAR(10),
     address TEXT,
+    latitude DECIMAL(10,7) NULL,
+    longitude DECIMAL(10,7) NULL,
     password VARCHAR(255) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
