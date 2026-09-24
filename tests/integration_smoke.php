@@ -1,0 +1,66 @@
+<?php
+declare(strict_types=1);
+
+$root = dirname(__DIR__);
+$failures = [];
+
+function requireFile(string $path): string {
+    global $root, $failures;
+    $full = $root.'/'.$path;
+    if (!is_file($full)) {
+        $failures[] = "Missing required file: {$path}";
+        return '';
+    }
+    return (string)file_get_contents($full);
+}
+function requireText(string $path, string $needle): void {
+    global $failures;
+    $content = requireFile($path);
+    if ($content !== '' && strpos($content, $needle) === false) {
+        $failures[] = "Expected integration contract not found in {$path}: {$needle}";
+    }
+}
+
+requireText('customer/order.php', "require_once '../shared/rewards.php';");
+requireText('customer/order.php', "o2oConsumeRewardCredits");
+requireText('customer/order.php', "o2oNotifyVendor");
+requireText('customer/buy.php', "product_size_id");
+requireText('customer/buy.php', "o2oConsumeRewardCredits");
+requireText('customer/buy.php', "o2oNotifyVendor");
+requireText('customer/sell_buy.php', "o2oConsumeRewardCredits");
+requireText('customer/swap_requests.php', "o2oAwardReward");
+requireText('vendor/dashboard.php', "o2oAwardReward");
+requireText('vendor/sell_listings.php', "o2oNotifyCustomer");
+requireText('customer/notifications.php', "notifications");
+requireText('vendor/notifications.php', "vendor_notifications");
+requireText('customer/map.php', "latitude");
+requireText('vendor/dashboard.php', "save_location");
+requireText('customer/stylist.php', "mode");
+requireText('customer/tryon.php', "tryon_requests");
+requireText('vendor/condition_ai.php', "status='processing'");
+requireText('admin/verifications.php', "admin_actions");
+requireText('admin/verifications.php', "o2oNotifyVendor");
+requireText('admin/moderation.php', "admin_actions");
+requireText('admin/moderation.php', "o2oNotifyCustomer");
+requireText('admin/audit.php', "FROM admin_actions");
+
+$schema = requireFile('database/database.sql');
+foreach ([
+    'reward_credits',
+    'reward_credit_used',
+    'vendor_notifications',
+    'latitude DECIMAL(10,7)',
+    'longitude DECIMAL(10,7)',
+    'product_size_id INT NULL'
+] as $needle) {
+    if ($schema !== '' && strpos($schema, $needle) === false) {
+        $failures[] = "Base schema is missing integration field/table: {$needle}";
+    }
+}
+
+if ($failures) {
+    fwrite(STDERR, "Integration smoke test failed:\n- ".implode("\n- ", $failures)."\n");
+    exit(1);
+}
+
+echo "Marketplace integration smoke test passed.\n";
