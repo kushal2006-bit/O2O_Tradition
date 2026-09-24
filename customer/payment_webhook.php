@@ -36,7 +36,6 @@ try{
  }elseif($event==='payment.failed'){
    if($tx['status']==='created'){
      $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,status='failed',failure_reason=? WHERE id=?")->execute([$providerPaymentId,'Razorpay reported payment failure.',(int)$tx['id']]);
-     o2oRefundRewardCredits($db,(int)$tx['customer_id'],0,(int)$tx['id']);
      if($tx['order_type']==='rental'){
        $st2=$db->prepare("SELECT reward_credit_used FROM orders WHERE id=? FOR UPDATE");$st2->execute([(int)$tx['order_id']]);$order=$st2->fetch();
        if($order){o2oRefundRewardCredits($db,(int)$tx['customer_id'],(float)$order['reward_credit_used'],(int)$tx['id']);$db->prepare("UPDATE orders SET payment_status='failed',status='cancelled' WHERE id=? AND status='new'")->execute([(int)$tx['order_id']]);}
