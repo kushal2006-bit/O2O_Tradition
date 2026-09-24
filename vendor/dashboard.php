@@ -82,6 +82,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
       $buyer=null;
     }
     $changed=false;
+    if($buyer&&$buyAction==='cancelled'&&$buyer['payment_method']==='Online Payment'&&$buyer['payment_status']==='paid'){$buyer=null;}
     if($buyer&&in_array($buyAction,$allowedTransitions[$buyer['order_status']]??[],true)){
       if($buyAction==='cancelled'){
         $db->beginTransaction();
@@ -93,6 +94,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
           if((float)$buyer['reward_credit_used']>0)o2oRefundRewardCredits($db,(int)$buyer['customer_id'],(float)$buyer['reward_credit_used'],$purchaseId);
           $db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([$purchaseId]);
           $db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=?")->execute([$purchaseId]);
+          $db->prepare("UPDATE payment_transactions SET status='failed',failure_reason='Purchase order cancelled before payment confirmation.' WHERE order_type='purchase' AND order_id=? AND status='created'")->execute([$purchaseId]);
           $db->commit();
         }catch(Throwable $e){if($db->inTransaction())$db->rollBack();error_log('Buy cancellation failed: '.$e->getMessage());}
       }else{
@@ -147,7 +149,7 @@ body{font-family:Arial,sans-serif;background:#F4F7F4;margin:0;color:#1A2E1A}.nav
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="delivered"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button class="complete">✓ Mark Delivered</button></form>
 <?php elseif($bo['order_status']==='delivered'):?><div style="color:#16A34A">✅ Delivered</div>
 <?php elseif($bo['order_status']==='cancelled'):?><div style="color:#DC2626">✕ Cancelled</div><?php endif;?>
-<?php if(in_array($bo['order_status'],['confirmed','packed'],true)):?><form method="POST">
+<?php if(in_array($bo['order_status'],['confirmed','packed'],true) && ($bo['payment_method']==='Cash on Delivery' || $bo['payment_status']!=='paid')):?><form method="POST">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="cancelled"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button style="background:#7F1D1D">Cancel Buy Order</button></form><?php endif;?>
 </div></div></div>
 <?php endforeach;else:?><div class="empty" style="padding:35px">🛍️<h3>No buy orders yet</h3><p>Customer purchases will appear here.</p></div><?php endif;?>
