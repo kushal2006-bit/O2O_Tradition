@@ -65,7 +65,8 @@ foreach ([
     'product_size_id INT NULL',
     'payment_transactions',
     "payment_status ENUM('pending','paid','failed','refunded')",
-    "payment_method ENUM('Cash on Delivery','Online Payment')"
+    "payment_method ENUM('Cash on Delivery','Online Payment')",
+    'rental_tracking_events'
 ] as $needle) {
     if ($schema !== '' && strpos($schema, $needle) === false) {
         $failures[] = "Base schema is missing integration field/table: {$needle}";
