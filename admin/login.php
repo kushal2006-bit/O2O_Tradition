@@ -27,15 +27,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $st->execute([$email]);
         $admin=$st->fetch();
 
-        if($admin&&password_verify($password,$admin['password'])){
+        if($admin && !empty($admin['locked_until']) && strtotime($admin['locked_until']) > time()){$error='Too many failed attempts. Please try again later.';}elseif($admin&&password_verify($password,$admin['password'])){
             session_regenerate_id(true);
             $_SESSION['csrf_token']=bin2hex(random_bytes(32));
             $_SESSION['admin_id']=(int)$admin['id'];
             $_SESSION['admin_name']=$admin['name'];
+            $db->prepare('UPDATE admins SET failed_login_count=0,locked_until=NULL WHERE id=?')->execute([(int)$admin['id']]);
             header('Location: dashboard.php');
             exit;
         }
         $error='Invalid admin credentials.';
+        if($admin){$failed=(int)$admin['failed_login_count']+1;$locked=$failed>=5?date('Y-m-d H:i:s',time()+900):null;$db->prepare('UPDATE admins SET failed_login_count=?,locked_until=? WHERE id=?')->execute([$failed,$locked,(int)$admin['id']]);}
     }
     }
 }
