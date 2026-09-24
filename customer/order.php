@@ -62,18 +62,30 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     } else {
         $db->beginTransaction();
         try {
-            $lock=$db->prepare("SELECT id FROM items WHERE id=? AND available=1 FOR UPDATE");
+            $lock=$db->prepare("SELECT i.id, COALESCE(pm.security_deposit,0) AS security_deposit
+                FROM items i
+                LEFT JOIN product_modes pm ON pm.item_id=i.id AND pm.mode='rent' AND pm.available=1
+                WHERE i.id=? AND i.available=1 FOR UPDATE");
             $lock->execute([$item['id']]);
-            if(!$lock->fetch()) throw new RuntimeException('This item is no longer available.');
+            $lockRow=$lock->fetch();
+            if(!$lockRow) throw new RuntimeException('This item is no longer available.');
             $overlap=$db->prepare("SELECT id FROM orders WHERE item_id=? AND status IN ('new','in_progress') AND pickup_date < ? AND return_date > ? LIMIT 1 FOR UPDATE");
             $overlap->execute([$item['id'],$return,$pickup]);
             if($overlap->fetch()) throw new RuntimeException('This item is already booked for part of those dates.');
             $days=(strtotime($return)-strtotime($pickup))/86400;
-            $total=$days*$item['rent_per_day'];
-            $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$total):0.0;
-            $payableTotal=max(0,round($total-$creditApplied,2));
-            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,reward_credit_used,status) VALUES (?,?,?,?,?,?,?,?,?,?, 'new')");
-            $stmt->execute([$customerId,$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$payableTotal,$creditApplied]);
+            $baseRent=round($days*(float)$item['rent_per_day'],2);
+            $securityDeposit=round((float)($item['security_deposit']??0),2);
+            $deliveryCharge=max(0,round((float)(getenv('O2O_DELIVERY_CHARGE')?:0),2));
+            $preCreditTotal=round($baseRent+$securityDeposit+$deliveryCharge,2);
+            $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$preCreditTotal):0.0;
+            $finalTotal=max(0,round($preCreditTotal-$creditApplied,2));
+            $securityDeposit=round((float)$lockRow['security_deposit'],2);
+            $deliveryCharge=max(0,round((float)(getenv('O2O_DELIVERY_CHARGE')?:0),2));
+            $preCreditTotal=round($baseRent+$securityDeposit+$deliveryCharge,2);
+            $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$preCreditTotal):0.0;
+            $finalTotal=max(0,round($preCreditTotal-$creditApplied,2));
+            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,security_deposit,delivery_charge,final_total,reward_credit_used,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'new')");
+            $stmt->execute([$customerId,$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$baseRent,$securityDeposit,$deliveryCharge,$finalTotal,$creditApplied]);
             $orderId=(int)$db->lastInsertId();
             $db->commit();
             o2oNotifyVendor($db, (int)$item['vendor_id'], 'rental_order', 'New rental order', 'Rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
@@ -99,16 +111,16 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <div class="main"><a href="store.php?id=<?= $item['vendor_id'] ?>" class="back-link">← Back to <?= htmlspecialchars($item['store_name']) ?></a><div class="page-title">Place Your Order</div>
 <div class="order-grid"><div class="item-summary"><div class="item-img-box"><?php if($item['image_path']&&file_exists('../uploads/items/'.$item['image_path'])):?><img src="../uploads/items/<?=htmlspecialchars($item['image_path'])?>" alt=""><?php else:?>👘<?php endif;?></div>
 <div class="item-info"><div class="item-name"><?=htmlspecialchars($item['name'])?></div><div class="item-store-tag">🏬 <?=htmlspecialchars($item['store_name'])?></div><div class="item-desc-sm"><?=htmlspecialchars($item['description'])?></div><div style="font-size:12px;color:#888;margin-bottom:12px">📍 <?=htmlspecialchars($item['store_address'])?> | 📞 <?=htmlspecialchars($item['store_phone'])?></div>
-<div class="price-table"><div class="price-row"><span class="label">Condition</span><span><?=htmlspecialchars($item['quality'])?></span></div><div class="price-row"><span class="label">Rent per Day</span><span>₹<?=number_format($item['rent_per_day'],0)?></span></div><?php if($item['rent_per_hour']>0):?><div class="price-row"><span class="label">Rent per Hour</span><span>₹<?=number_format($item['rent_per_hour'],0)?></span></div><?php endif;?><div class="price-row due"><span class="label">Late Return Charge</span><span>₹<?=number_format($item['late_charge_per_day'],0)?>/day</span></div></div></div></div>
+<div class="price-table"><div class="price-row"><span class="label">Condition</span><span><?=htmlspecialchars($item['quality'])?></span></div><div class="price-row"><span class="label">Rent per Day</span><span>₹<?=number_format($item['rent_per_day'],0)?></span></div><div class="price-row"><span class="label">Refundable Security Deposit</span><span>₹<?=number_format((float)$item['security_deposit'],2)?></span></div><div class="price-row"><span class="label">Delivery Charge</span><span>₹<?=number_format(max(0,(float)(getenv('O2O_DELIVERY_CHARGE')?:0)),2)?></span></div><?php if($item['rent_per_hour']>0):?><div class="price-row"><span class="label">Rent per Hour</span><span>₹<?=number_format($item['rent_per_hour'],0)?></span></div><?php endif;?><div class="price-row due"><span class="label">Late Return Charge</span><span>₹<?=number_format($item['late_charge_per_day'],0)?>/day</span></div></div></div></div>
 <div class="order-form"><div class="form-title">Booking Details</div><?php if($error):?><div class="alert-error"><?=htmlspecialchars($error)?></div><?php endif;?><form method="POST" id="orderForm">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div style="font-size:11px;color:#888;margin-top:5px">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
 <div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
-<div class="estimate-box" id="estimateBox" style="display:none">Estimated Rent: <strong id="estimateAmt">₹0</strong><div id="estimateDays" style="font-size:12px;color:#888;margin-top:4px"></div></div>
+<div class="estimate-box" id="estimateBox" style="display:none">Estimated Total: <strong id="estimateAmt">₹0</strong><div id="estimateDays" style="font-size:12px;color:#888;margin-top:4px"></div></div>
 <button type="submit" class="btn-order">Confirm & Place Order</button></form></div></div></div>
 <script>
-const rentPerDay=<?=floatval($item['rent_per_day'])?>;
-function calcTotal(){const p=document.getElementById('pickupDate').value,r=document.getElementById('returnDate').value;if(p&&r){const days=Math.max(1,Math.round((new Date(r)-new Date(p))/86400000)),total=days*rentPerDay;document.getElementById('estimateAmt').textContent='₹'+total.toLocaleString('en-IN');document.getElementById('estimateDays').textContent=days+' day(s) × ₹'+rentPerDay.toLocaleString('en-IN')+'/day';document.getElementById('estimateBox').style.display='block';}}
+const rentPerDay=<?=floatval($item['rent_per_day'])?>; const securityDeposit=<?=floatval($item['security_deposit'])?>; const deliveryCharge=<?=max(0,(float)(getenv('O2O_DELIVERY_CHARGE')?:0))?>;
+function calcTotal(){const p=document.getElementById('pickupDate').value,r=document.getElementById('returnDate').value;if(p&&r){const days=Math.max(1,Math.round((new Date(r)-new Date(p))/86400000)),base=days*rentPerDay,total=base+securityDeposit+deliveryCharge;document.getElementById('estimateAmt').textContent='₹'+total.toLocaleString('en-IN');document.getElementById('estimateDays').textContent=days+' day(s) × ₹'+rentPerDay.toLocaleString('en-IN')+'/day + ₹'+securityDeposit.toLocaleString('en-IN')+' refundable deposit + ₹'+deliveryCharge.toLocaleString('en-IN')+' delivery';document.getElementById('estimateBox').style.display='block';}}
 </script></body></html>
