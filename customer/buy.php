@@ -2,6 +2,7 @@
 session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
+require_once '../shared/notifications.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
@@ -103,6 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sold->execute([$itemId]);
 
             $db->commit();
+            o2oNotifyVendor($db, (int)$available['vendor_id'], 'buy_order', 'New buy order', 'Buy order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
             header('Location: buy_success.php?id=' . $orderId);
             exit;
         } catch (Throwable $e) {
