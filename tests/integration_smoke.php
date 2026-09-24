@@ -149,3 +149,6 @@ requireText('customer/wishlist.php', "Availability alert");
 requireText('cron/wishlist_alerts.php', "price_drop");
 requireText('database/migrations/029_admin_analytics.sql', 'admin_daily_metrics');
 requireText('admin/analytics.php', 'Completed rental and delivered purchase activity');
+requireText('database/migrations/030_saved_complete_looks.sql', 'saved_complete_looks');
+requireText('customer/complete_look.php', 'Save This Complete Look');
+requireText('customer/saved_looks.php', 'Saved Complete Looks');
