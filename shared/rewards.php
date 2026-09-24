@@ -35,6 +35,19 @@ function o2oRedeemRewardPoints(PDO $db, int $customerId, int $points=O2O_REWARD_
         return ['points'=>$points,'credit'=>O2O_REWARD_CREDIT_VALUE,'remaining_points'=>$balance-$points];
     }catch(Throwable $e){if($started&&$db->inTransaction())$db->rollBack();throw $e;}
 }
+function o2oRefundRewardCredits(PDO $db, int $customerId, float $amount, int $sourceId): void
+{
+    if ($customerId <= 0 || $amount <= 0 || $sourceId <= 0) return;
+    $check=$db->prepare("SELECT id FROM rewards WHERE customer_id=? AND source_type='payment_refund' AND source_id=? LIMIT 1");
+    $check->execute([$customerId,$sourceId]);
+    if ($check->fetch()) return;
+    $reward=$db->prepare("INSERT INTO rewards (customer_id,points,reason,transaction_type,source_type,source_id) VALUES (?,0,?,'adjustment','payment_refund',?)");
+    $reward->execute([$customerId,'Restored reward credit after failed payment',$sourceId]);
+    $rewardId=(int)$db->lastInsertId();
+    $credit=$db->prepare("INSERT INTO reward_credits (customer_id,reward_id,credit_amount,balance) VALUES (?,?,?,?)");
+    $credit->execute([$customerId,$rewardId,round($amount,2),round($amount,2)]);
+}
+
 function o2oConsumeRewardCredits(PDO $db, int $customerId, float $amount): float
 {
     if($customerId<=0||$amount<=0)return 0.0;
