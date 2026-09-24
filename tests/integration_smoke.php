@@ -114,3 +114,6 @@ requireText('cron/expire_pending_payments.php', "o2oExpirePendingPayments");
 requireText('vendor/size_charts.php', "product_sizes");
 requireText('vendor/inventory.php', "size_charts.php");
 requireText('customer/fit.php', "Combined measurement difference");
+
+requireText('vendor/dashboard.php', "payment_method='Cash on Delivery' OR payment_status='paid'");
+requireText('vendor/dashboard.php', "status='failed',failure_reason='Purchase order cancelled before payment confirmation.'");
