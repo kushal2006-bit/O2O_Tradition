@@ -97,3 +97,10 @@ if ($failures) {
 }
 
 echo "Marketplace integration smoke test passed.\n";
+
+requireText('vendor/login.php', "failed_login_count");
+requireText('vendor/login.php', "locked_until");
+requireText('admin/login.php', "failed_login_count");
+requireText('admin/login.php', "locked_until");
+requireText('database/migrations/022_auth_throttling.sql', "vendors");
+requireText('database/migrations/022_auth_throttling.sql', "admins");
