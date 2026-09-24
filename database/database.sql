@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS customers (
     email_verified_at TIMESTAMP NULL,
     verification_token_hash CHAR(64) NULL,
     verification_expires_at TIMESTAMP NULL,
+    verification_last_sent_at TIMESTAMP NULL,
     failed_login_count INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
