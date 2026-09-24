@@ -270,6 +270,52 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
 </nav>
 
 <main class="main">
+  <?php
+  $homeRecStmt = $db->prepare("SELECT i.id,i.name,i.description,i.image_path,i.category,i.rent_per_day,v.store_name,
+      COALESCE((SELECT pm.mode FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),'rent') AS rec_mode,
+      COALESCE((SELECT pm.price FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),i.rent_per_day) AS rec_price,
+      (CASE WHEN EXISTS(SELECT 1 FROM wishlists w WHERE w.customer_id=? AND w.item_id=i.id) THEN 50 ELSE 0 END)
+      + LEAST(35,COALESCE((SELECT COUNT(*)*10 FROM user_events e WHERE e.customer_id=? AND e.item_id=i.id),0))
+      + LEAST(30,COALESCE((SELECT COUNT(*)*8 FROM user_events e JOIN items ci ON ci.id=e.item_id WHERE e.customer_id=? AND ci.category=i.category),0))
+      + CASE WHEN ? <> '' AND v.pincode LIKE CONCAT(LEFT(?,3),'%') THEN 20 ELSE 0 END AS rec_score
+      FROM items i JOIN vendors v ON v.id=i.vendor_id
+      WHERE i.available=1
+        AND EXISTS (SELECT 1 FROM product_modes pmx WHERE pmx.item_id=i.id AND pmx.available=1)
+      ORDER BY rec_score DESC, i.name LIMIT 4");
+  $homeRecStmt->execute([$customerId,$customerId,$customerId,$customerPincode,$customerPincode]);
+  $homeRecommendations = $homeRecStmt->fetchAll();
+  ?>
+  <?php if ($homeRecommendations): ?>
+  <section class="ai-card" style="margin:0 0 38px;background:linear-gradient(120deg,#21170B,#2D1F0A);">
+    <div>
+      <div class="ai-kicker">For You</div>
+      <h2>Personalised picks from the current catalogue</h2>
+      <p>These suggestions use your saved items, activity and nearby availability. Open the full recommendations page to see the recorded signals behind each pick.</p>
+    </div>
+    <a href="recommendations.php" class="ai-button">See all recommendations</a>
+  </section>
+  <div class="items-grid" style="margin-bottom:48px;">
+    <?php foreach ($homeRecommendations as $item): ?>
+    <a href="item.php?id=<?= (int)$item['id'] ?>" class="item-card">
+      <div class="item-img">
+        <?php if ($item['image_path'] && file_exists('../uploads/items/' . $item['image_path'])): ?>
+          <img src="../uploads/items/<?= htmlspecialchars($item['image_path']) ?>" alt="<?= htmlspecialchars($item['name']) ?>">
+        <?php else: ?>✦<?php endif; ?>
+      </div>
+      <div class="item-body">
+        <div class="item-name"><?= htmlspecialchars($item['name']) ?></div>
+        <div class="item-store"><?= htmlspecialchars($item['store_name']) ?></div>
+        <div class="item-desc"><?= htmlspecialchars($item['description']) ?></div>
+        <div class="item-meta">
+          <div class="item-price"><?= htmlspecialchars(ucfirst($item['rec_mode'])) ?> · ₹<?= number_format((float)$item['rec_price'],0) ?><?= $item['rec_mode']==='rent' ? '/day' : '' ?></div>
+          <div class="item-quality <?= htmlspecialchars($item['quality'] ?? '') ?>"><?= htmlspecialchars($item['category'] ?? 'Traditional wear') ?></div>
+        </div>
+      </div>
+    </a>
+    <?php endforeach; ?>
+  </div>
+  <?php endif; ?>
+
   <section class="mode-message">
     <div>
       <h2><?= htmlspecialchars($modeDescriptions[$mode]['title']) ?></h2>
