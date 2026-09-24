@@ -93,7 +93,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $payableTotal = max(0, round($preCreditTotal - $creditApplied, 2));
             $order = $db->prepare("INSERT INTO purchase_orders
                 (customer_id, vendor_id, total_amount, reward_credit_used, delivery_charge, payment_status, order_status, shipping_address)
-                VALUES (?, ?, ?, ?, 0, 'pending', 'confirmed', ?)");
+                VALUES (?, ?, ?, ?, ?, 'pending', 'confirmed', ?)");
             $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $deliveryCharge, $address]);
             $orderId = (int)$db->lastInsertId();
 
