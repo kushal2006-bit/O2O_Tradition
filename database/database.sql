@@ -38,6 +38,8 @@ CREATE TABLE IF NOT EXISTS vendors (
     latitude DECIMAL(10,7) NULL,
     longitude DECIMAL(10,7) NULL,
     password VARCHAR(255) NOT NULL,
+    failed_login_count INT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
