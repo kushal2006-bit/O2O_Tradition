@@ -3,12 +3,14 @@ session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
 require_once '../shared/payments.php';
+require_once '../shared/payment_lifecycle.php';
 o2oCsrfToken();
 requireLogin('customer','login.php');
 
 if (!o2oRazorpayConfigured()) { http_response_code(503); exit('Online payment is not configured.'); }
 
 $db=getDB();
+o2oExpirePendingPayments($db);
 $customerId=(int)$_SESSION['customer_id'];
 $type=$_GET['type']??'';
 $orderId=(int)($_GET['id']??0);
@@ -30,7 +32,7 @@ if($payment['payment_status']==='paid'){header('Location: '.($type==='rental'?'o
 ?>
 <!doctype html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Secure Payment – O2O Tradition</title><style>body{font-family:Arial;background:#FAF6EE;color:#3D2B0F;margin:0}.nav{background:#1A1108;color:#C9A84C;padding:18px 28px}.main{max-width:620px;margin:55px auto;background:#fff;padding:35px;box-shadow:0 2px 12px #0001;text-align:center}.amount{font:36px Georgia,serif;color:#8B1A1A;margin:18px}.muted{color:#777;font-size:13px;line-height:1.6}.btn{background:#C9A84C;color:#1A1108;border:0;padding:14px 24px;font-weight:bold;cursor:pointer}.error{padding:12px;background:#FEF2F2;color:#991B1B;margin:15px 0}</style></head>
-<body><div class="nav">O2O Tradition · Secure Checkout</div><main class="main"><h1>Complete Payment</h1><p class="muted">Order #<?=str_pad($orderId,6,'0',STR_PAD_LEFT)?> · Razorpay Secure Checkout</p><div class="amount">₹<?=number_format((float)$payment['amount'],2)?></div><p class="muted">Your payment is processed by Razorpay. O2O Tradition does not receive or store your card details.</p><button id="pay" class="btn">Pay Securely</button><div id="msg" class="muted" style="margin-top:18px"></div></main>
+<body><div class="nav">O2O Tradition · Secure Checkout</div><main class="main"><h1>Complete Payment</h1><p class="muted">Order #<?=str_pad($orderId,6,'0',STR_PAD_LEFT)?> · Razorpay Secure Checkout</p><div class="amount">₹<?=number_format((float)$payment['amount'],2)?></div><p class="muted">Your payment is processed by Razorpay. O2O Tradition does not receive or store your card details.</p><button id="pay" class="btn">Pay Securely</button><a href="orders.php" class="btn" style="display:inline-block;margin-top:10px;background:#fff;color:#1A1108;border:1px solid #ddd;text-decoration:none">Cancel / Return to Orders</a><div id="msg" class="muted" style="margin-top:18px"></div></main>
 <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
 <script>
 const csrf=<?=json_encode($_SESSION['csrf_token'])?>;
