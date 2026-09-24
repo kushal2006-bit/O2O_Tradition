@@ -7,7 +7,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   o2oRequireCsrf();$type=$_POST['target_type']??'';$id=(int)($_POST['id']??0);$action=$_POST['action']??'';$map=['seller'=>['active','cancelled'],'swap'=>['active','cancelled']];if(!isset($map[$type])||!in_array($action,$map[$type],true)||$id<1)$err='Invalid moderation request.';else{try{$db->beginTransaction();if($type==='seller'){
 $s=$db->prepare("SELECT id,status,seller_id,title FROM seller_listings WHERE id=? FOR UPDATE");$s->execute([$id]);$row=$s->fetch();if(!$row)throw new Exception('Listing not found.');
 $allowedFrom=['pending_review','active'];if(!in_array($row['status'],$allowedFrom,true))throw new Exception('Listing is no longer available for moderation.');
-$db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status IN ('pending_review','active')")->execute([$action,$id]);if($db->lastInsertId()!=='' && $db->rowCount()===0)throw new Exception('Listing status was already changed.');
+$db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status IN ('pending_review','active')")->execute([$action,$id]);if($db->rowCount()===0)throw new Exception('Listing status was already changed.');
 $target='seller_listing';
 o2oNotifyCustomer($db,(int)$row['seller_id'],'admin_marketplace_moderation','Sell listing removed','Your sell listing "'.($row['title']??'item').'" was removed by an admin moderation action.');
 }else{
