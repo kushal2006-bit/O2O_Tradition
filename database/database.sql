@@ -18,10 +18,14 @@ CREATE TABLE IF NOT EXISTS customers (
     verification_token_hash CHAR(64) NULL,
     verification_expires_at TIMESTAMP NULL,
     verification_last_sent_at TIMESTAMP NULL,
+    password_reset_token_hash CHAR(64) NULL,
+    password_reset_expires_at TIMESTAMP NULL,
+    password_reset_last_sent_at TIMESTAMP NULL,
     failed_login_count INT NOT NULL DEFAULT 0,
     locked_until TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UNIQUE KEY uq_customers_verification_token (verification_token_hash)
+    UNIQUE KEY uq_customers_verification_token (verification_token_hash),
+    UNIQUE KEY uq_customers_password_reset_token (password_reset_token_hash)
 );
 
 -- Vendors Table
