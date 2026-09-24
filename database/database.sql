@@ -111,7 +111,7 @@ CREATE TABLE IF NOT EXISTS purchase_order_items (
     unit_price DECIMAL(10,2) NOT NULL,
     total_price DECIMAL(10,2) NOT NULL,
     FOREIGN KEY (order_id) REFERENCES purchase_orders(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE RESTRICT
 );
 
 CREATE TABLE IF NOT EXISTS seller_listings (
@@ -143,8 +143,7 @@ CREATE TABLE IF NOT EXISTS swap_listings (
     location VARCHAR(255),
     status ENUM('active','matched','completed','cancelled') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES customers(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
+    FOREIGN KEY (owner_id) REFERENCES customers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS swap_requests (
@@ -182,8 +181,7 @@ CREATE TABLE IF NOT EXISTS wishlists (
     item_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_wishlist (customer_id, item_id),
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
-    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_events (
@@ -204,9 +202,24 @@ CREATE TABLE IF NOT EXISTS notifications (
     type VARCHAR(50) NOT NULL,
     title VARCHAR(150) NOT NULL,
     message TEXT NOT NULL,
-    is_read TINYINT(1) DEFAULT 0,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_notifications_customer (customer_id, created_at),
+    INDEX idx_notifications_unread (customer_id, is_read, created_at),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS vendor_notifications (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    vendor_id INT NOT NULL,
+    type VARCHAR(50) NOT NULL,
+    title VARCHAR(150) NOT NULL,
+    message TEXT NOT NULL,
+    is_read TINYINT(1) NOT NULL DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_vendor_notifications_vendor (vendor_id, created_at),
+    INDEX idx_vendor_notifications_unread (vendor_id, is_read, created_at),
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS rewards (
@@ -371,8 +384,7 @@ CREATE TABLE IF NOT EXISTS admin_actions (
 );
 
 -- This file intentionally contains schema only.
--- Demo data belongs in database/seed_demo.sql.
-
+-- Demo data belongs in database/seed_demo.sql
 
 CREATE TABLE IF NOT EXISTS seller_purchase_orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
