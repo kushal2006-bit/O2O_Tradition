@@ -4,6 +4,7 @@ require_once '../shared/config.php';
 require_once '../shared/security.php';
 require_once '../shared/notifications.php';
 require_once '../shared/rewards.php';
+require_once '../shared/payments.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
@@ -69,8 +70,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please select a size for this item.';
     } elseif ($productSizeId && !array_filter($sizes, fn($size) => (int)$size['id'] === $productSizeId)) {
         $error = 'Please select an available size for this item.';
-    } elseif ($paymentMethod !== 'Cash on Delivery') {
-        $error = 'Only Cash on Delivery is connected in this development step.';
+    } elseif ($paymentMethod === 'Online Payment' && !o2oRazorpayConfigured()) {
+        $error = 'Online payment is not configured yet.';
+    } elseif (!in_array($paymentMethod, ['Cash on Delivery','Online Payment'], true)) {
+        $error = 'Please select a valid payment method.';
     } else {
         try {
             $db->beginTransaction();
@@ -91,11 +94,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $preCreditTotal = round($subtotal + $deliveryCharge,2);
             $creditApplied = $useRewardCredit ? o2oConsumeRewardCredits($db, $customerId, $preCreditTotal) : 0.0;
             $payableTotal = max(0, round($preCreditTotal - $creditApplied, 2));
+            $gateway = null;
+            if ($paymentMethod === 'Online Payment') {
+                $gateway = o2oCreateRazorpayOrder($payableTotal, 'O2O-B-'.bin2hex(random_bytes(6)));
+            }
             $order = $db->prepare("INSERT INTO purchase_orders
-                (customer_id, vendor_id, total_amount, reward_credit_used, delivery_charge, payment_status, order_status, shipping_address)
-                VALUES (?, ?, ?, ?, ?, 'pending', 'confirmed', ?)");
-            $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $deliveryCharge, $address]);
+                (customer_id, vendor_id, total_amount, reward_credit_used, delivery_charge, payment_method, payment_status, order_status, shipping_address)
+                VALUES (?, ?, ?, ?, ?, ?, 'pending', 'confirmed', ?)");
+            $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $deliveryCharge, $paymentMethod, $address]);
             $orderId = (int)$db->lastInsertId();
+            if ($gateway) {
+                $pt = $db->prepare("INSERT INTO payment_transactions (customer_id,order_type,order_id,provider,provider_order_id,amount,currency,status) VALUES (?,?,?,?,?,?,?,'created')");
+                $pt->execute([$customerId,'purchase',$orderId,'razorpay',$gateway['id'],$payableTotal,'INR']);
+            }
 
             $line = $db->prepare("INSERT INTO purchase_order_items
                 (order_id, item_id, product_size_id, quantity, unit_price, total_price)
@@ -111,8 +122,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $sold->execute([$itemId]);
 
             $db->commit();
-            o2oNotifyVendor($db, (int)$available['vendor_id'], 'buy_order', 'New buy order', 'Buy order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
-            header('Location: buy_success.php?id=' . $orderId);
+            if ($gateway) {
+                header('Location: payment.php?type=purchase&id='.$orderId);
+            } else {
+                o2oNotifyVendor($db, (int)$available['vendor_id'], 'buy_order', 'New buy order', 'Buy order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
+                header('Location: buy_success.php?id=' . $orderId);
+            }
             exit;
         } catch (Throwable $e) {
             if ($db->inTransaction()) {
@@ -145,7 +160,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <input type="hidden" name="item_id" value="<?=$itemId?>">
 <?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div class="muted">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="shipping_address" required><?=htmlspecialchars($_POST['shipping_address'] ?? $customer['address'] ?? '')?></textarea></div>
-<div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply available reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
+<div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option><?php if(o2oRazorpayConfigured()):?><option>Online Payment</option><?php endif;?></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply available reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
 <button class="btn" type="submit">Place Buy Order</button>
 </form>
 </div></body></html>
