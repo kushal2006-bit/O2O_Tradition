@@ -140,3 +140,6 @@ requireText('database/migrations/026_customer_account_controls.sql', "account_st
 requireText('customer/account.php', "Deactivate My Account");
 requireText('customer/account.php', "email_notifications_enabled");
 requireText('customer/login.php', "account_status");
+requireText('vendor/customers.php', "Customers");
+requireText('vendor/reviews.php', "Ratings & Reviews");
+requireText('vendor/dashboard.php', 'customers.php');
