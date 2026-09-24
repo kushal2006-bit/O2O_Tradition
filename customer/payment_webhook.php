@@ -34,15 +34,12 @@ try{
      }
    }
  }elseif($event==='payment.failed'){
+   // Keep the gateway order in the active state so Razorpay Checkout can retry
+   // within the 30-minute payment window. Expiry is responsible for final
+   // cancellation/release when the customer truly abandons the attempt.
    if($tx['status']==='created'){
-     $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,status='failed',failure_reason=? WHERE id=?")->execute([$providerPaymentId,'Razorpay reported payment failure.',(int)$tx['id']]);
-     if($tx['order_type']==='rental'){
-       $st2=$db->prepare("SELECT reward_credit_used FROM orders WHERE id=? FOR UPDATE");$st2->execute([(int)$tx['order_id']]);$order=$st2->fetch();
-       if($order){o2oRefundRewardCredits($db,(int)$tx['customer_id'],(float)$order['reward_credit_used'],(int)$tx['id']);$db->prepare("UPDATE orders SET payment_status='failed',status='cancelled' WHERE id=? AND status='new'")->execute([(int)$tx['order_id']]);}
-     }else{
-       $st2=$db->prepare("SELECT reward_credit_used FROM purchase_orders WHERE id=? FOR UPDATE");$st2->execute([(int)$tx['order_id']]);$order=$st2->fetch();
-       if($order){o2oRefundRewardCredits($db,(int)$tx['customer_id'],(float)$order['reward_credit_used'],(int)$tx['id']);$db->prepare("UPDATE purchase_orders SET payment_status='failed',order_status='cancelled' WHERE id=? AND order_status='confirmed'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=? AND i.available=0")->execute([(int)$tx['order_id']]);}
-     }
+     $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,failure_reason=? WHERE id=? AND status='created'")
+       ->execute([$providerPaymentId,'Razorpay reported a payment failure; retry remains available.',(int)$tx['id']]);
    }
  }
  $db->commit();http_response_code(200);echo 'OK';
