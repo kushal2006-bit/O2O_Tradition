@@ -121,3 +121,8 @@ requireText('vendor/dashboard.php', "status='failed',failure_reason='Purchase or
 requireText('vendor/trust_records.php', "after-return report can only be recorded after the rental is returned");
 requireText('vendor/trust_records.php', "Completed sanitization requires a returned and inspected rental");
 requireText('customer/item.php', "itemAverageRating");
+
+requireText('customer/login.php', "resend_verification");
+requireText('customer/login.php', "at least 60 seconds");
+requireText('shared/email.php', "o2oCreateVerificationToken");
+requireText('database/migrations/023_verification_resend.sql', "verification_last_sent_at");
