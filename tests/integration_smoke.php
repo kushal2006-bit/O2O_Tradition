@@ -152,3 +152,5 @@ requireText('admin/analytics.php', 'Completed rental and delivered purchase acti
 requireText('database/migrations/030_saved_complete_looks.sql', 'saved_complete_looks');
 requireText('customer/complete_look.php', 'Save This Complete Look');
 requireText('customer/saved_looks.php', 'Saved Complete Looks');
+requireText('customer/privacy.php', 'Download your account data');
+requireText('customer/account.php', 'privacy.php');
