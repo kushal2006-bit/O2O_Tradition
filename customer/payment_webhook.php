@@ -25,7 +25,7 @@ try{
  $actualPaise=(int)($entity['amount']??-1);
  if($actualPaise!==$expectedPaise){throw new RuntimeException('Webhook amount mismatch.');}
  if($event==='order.paid' || $event==='payment.captured'){
-   if($tx['status']!=='paid'){
+   if($tx['status']==='created'){
      $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,status='paid',paid_at=NOW() WHERE id=?")->execute([$providerPaymentId,(int)$tx['id']]);
      if($tx['order_type']==='rental'){
        $db->prepare("UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'")->execute([(int)$tx['order_id']]);
