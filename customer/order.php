@@ -64,8 +64,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
         $error='Please select an available size for this item.';
     } elseif (!in_array($payment,$allowedPayments,true)) {
         $error='Please select a valid payment method.';
-    } elseif ($payment==='Online Payment' && isset($finalTotal) && $finalTotal<=0) {
-        $error='No online payment is required because reward credit covers the total.';
     } elseif (!preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$pickup) || !preg_match('/^\\d{4}-\\d{2}-\\d{2}$/',$return) || $pickup < date('Y-m-d') || $return <= $pickup) {
         $error='Please choose valid pickup and return dates.';
     } else {
