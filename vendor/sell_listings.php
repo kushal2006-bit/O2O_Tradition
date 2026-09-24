@@ -1,11 +1,20 @@
 <?php
-session_start();require_once '../shared/config.php';require_once '../shared/security.php';o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
+session_start();require_once '../shared/config.php';require_once '../shared/security.php';require_once '../shared/notifications.php';o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
 if($_SERVER['REQUEST_METHOD']==='POST'){
   o2oRequireCsrf();
   $id=(int)($_POST['listing_id']??0);$action=$_POST['action']??'';
   if($id>0&&in_array($action,['approve','reject'],true)){
     $status=$action==='approve'?'active':'cancelled';
-    $db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status='pending_review'")->execute([$status,$id]);
+    $st=$db->prepare("SELECT seller_id,title FROM seller_listings WHERE id=? AND status='pending_review' LIMIT 1");
+    $st->execute([$id]);
+    $listing=$st->fetch();
+    if($listing){
+      $up=$db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status='pending_review'");
+      $up->execute([$status,$id]);
+      if($up->rowCount()===1){
+        o2oNotifyCustomer($db,(int)$listing['seller_id'],'sell_listing_review','Sell listing '.($action==='approve'?'approved':'rejected'), 'Your sell listing "'.($listing['title']??'item').'" was '.($action==='approve'?'approved and is now visible in the marketplace.':'rejected during vendor review.');
+      }
+    }
   }
   header('Location: sell_listings.php');exit;
 }
