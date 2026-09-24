@@ -1,12 +1,15 @@
 <?php
-session_start();require_once '../shared/config.php';requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
+session_start();require_once '../shared/config.php';require_once '../shared/security.php';require_once '../shared/rental_tracking.php';o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];
 $message='';$error='';$uploadDir=dirname(__DIR__).'/uploads/condition-reports/';$uploadWeb='../uploads/condition-reports/';if(!is_dir($uploadDir))@mkdir($uploadDir,0755,true);
 
 if($_SERVER['REQUEST_METHOD']==='POST'){
+  try{o2oRequireCsrf();}catch(Throwable $e){$error='Your session token expired. Please reload and try again.';}
   $action=$_POST['action']??'';$itemId=(int)($_POST['item_id']??0);$orderId=(int)($_POST['order_id']??0);
   $itemSt=$db->prepare("SELECT id FROM items WHERE id=? AND vendor_id=? LIMIT 1");$itemSt->execute([$itemId,$vendorId]);$item=$itemSt->fetch();
-  if(!$item)$error='Item not found in your inventory.';
-  elseif($action==='condition'){
+  $order=null;
+  if(!$error&&$orderId>0){$orderSt=$db->prepare("SELECT id,item_id,status FROM orders WHERE id=? AND vendor_id=? LIMIT 1");$orderSt->execute([$orderId,$vendorId]);$order=$orderSt->fetch();if(!$order)$error='Rental order not found for this vendor.';elseif((int)$order['item_id']!==$itemId)$error='The rental order does not match the selected item.';}
+  if(!$error&&!$item)$error='Item not found in your inventory.';
+  elseif(!$error&&$action==='condition'){
     $type=$_POST['inspection_type']??'manual';$score=(float)($_POST['condition_score']??0);$notes=trim($_POST['notes']??'');$reportImage=null;
     if(!in_array($type,['before_rental','after_return','manual'],true))$error='Invalid inspection type.';
     elseif($score<0||$score>100)$error='Condition score must be between 0 and 100.';
@@ -15,11 +18,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       elseif($_FILES['report_image']['size']>5*1024*1024)$error='Condition image must be 5MB or smaller.';
       else{$mime=(new finfo(FILEINFO_MIME_TYPE))->file($_FILES['report_image']['tmp_name']);$allowed=['image/jpeg'=>'jpg','image/png'=>'png','image/webp'=>'webp'];if(!isset($allowed[$mime]))$error='Use JPG, PNG or WEBP for condition photos.';else{$fn='condition_'.bin2hex(random_bytes(8)).'.'.$allowed[$mime];if(!move_uploaded_file($_FILES['report_image']['tmp_name'],$uploadDir.$fn))$error='Could not save condition image.';else$reportImage=$fn;}}
     }
-    if(!$error){$st=$db->prepare("INSERT INTO condition_reports (item_id,rental_order_id,created_by_vendor_id,inspection_type,condition_score,notes,image_path) VALUES (?,?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$type,$score,$notes,$reportImage]);$message='Condition report saved.';}
+    if(!$error){$st=$db->prepare("INSERT INTO condition_reports (item_id,rental_order_id,created_by_vendor_id,inspection_type,condition_score,notes,image_path) VALUES (?,?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$type,$score,$notes,$reportImage]);if($orderId>0&&$type==='after_return')o2oRentalRecordEvent($db,$orderId,$vendorId,'inspected','After-return condition inspection recorded.');$message='Condition report saved.';}
   }elseif($action==='sanitize'){
     $status=$_POST['sanitize_status']??'completed';$notes=trim($_POST['sanitize_notes']??'');
     if(!in_array($status,['pending','in_progress','completed'],true))$error='Invalid sanitization status.';
-    else{$completed=$status==='completed'?date('Y-m-d H:i:s'):null;$st=$db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status,completed_at,notes) VALUES (?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$status,$completed,$notes]);$message='Sanitization record saved.';}
+    else{$completed=$status==='completed'?date('Y-m-d H:i:s'):null;$st=$db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status,completed_at,notes) VALUES (?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$status,$completed,$notes]);if($orderId>0&&$status==='completed')o2oRentalRecordEvent($db,$orderId,$vendorId,'sanitized','Sanitization completed.');$message='Sanitization record saved.';}
   }else $error='Invalid trust action.';
 }
 
