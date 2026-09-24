@@ -72,6 +72,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $error = 'Please select an available size for this item.';
     } elseif ($paymentMethod === 'Online Payment' && !o2oRazorpayConfigured()) {
         $error = 'Online payment is not configured yet.';
+    } elseif ($paymentMethod === 'Online Payment' && (float)($item['buy_price'] ?? 0) <= 0) {
+        $error = 'No online payment is required for a zero-value order.';
     } elseif (!in_array($paymentMethod, ['Cash on Delivery','Online Payment'], true)) {
         $error = 'Please select a valid payment method.';
     } else {
