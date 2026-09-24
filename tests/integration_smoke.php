@@ -127,3 +127,8 @@ requireText('customer/login.php', "resend_verification");
 requireText('customer/login.php', "at least 60 seconds");
 requireText('shared/email.php', "o2oCreateVerificationToken");
 requireText('database/migrations/023_verification_resend.sql', "verification_last_sent_at");
+requireText('customer/login.php', "forgot_password");
+requireText('customer/reset_password.php', "password_reset_token_hash");
+requireText('shared/email.php', "o2oCreatePasswordResetToken");
+requireText('shared/email.php', "o2oSendPasswordResetEmail");
+requireText('database/migrations/024_password_reset.sql', "password_reset_expires_at");
