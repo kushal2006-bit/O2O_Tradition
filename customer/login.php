@@ -65,24 +65,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $password = $_POST['reg_password'] ?? '';
 
         if ($name && $email && $password && $pincode) {
-            if (strlen($password) < 8) { $error='Password must be at least 8 characters.'; } else {
-            $db = getDB();
-            $check = $db->prepare("SELECT id FROM customers WHERE email = ?");
-            $check->execute([$email]);
-            if ($check->fetch()) {
-                $error = 'Email already registered.';
+            if (strlen($password) < 8) {
+                $error = 'Password must be at least 8 characters.';
             } else {
-                $hash = password_hash($password, PASSWORD_DEFAULT);
-                $token=bin2hex(random_bytes(32));
-                $tokenHash=hash('sha256',$token);
-                $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password, verification_token_hash, verification_expires_at) VALUES (?,?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
-                $stmt->execute([$name, $email, $phone, $pincode, $address, $hash, $tokenHash]);
-                if (o2oSendVerificationEmail($email,$name,$token)) { $success='Registration complete. Check your email to verify your account before signing in.'; }
-                else { $error='Registration saved, but the verification email could not be sent. Production mail settings are not configured yet.'; }
+                $db = getDB();
+                $check = $db->prepare("SELECT id FROM customers WHERE email = ?");
+                $check->execute([$email]);
+                if ($check->fetch()) {
+                    $error = 'Email already registered.';
+                } else {
+                    $hash = password_hash($password, PASSWORD_DEFAULT);
+                    $token = bin2hex(random_bytes(32));
+                    $tokenHash = hash('sha256', $token);
+                    $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password, verification_token_hash, verification_expires_at) VALUES (?,?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
+                    $stmt->execute([$name, $email, $phone, $pincode, $address, $hash, $tokenHash]);
+                    if (o2oSendVerificationEmail($email, $name, $token)) {
+                        $success = 'Registration complete. Check your email to verify your account before signing in.';
+                    } else {
+                        $error = 'Registration saved, but the verification email could not be sent. Production mail settings are not configured yet.';
+                    }
+                }
             }
         } else {
             $error = 'Please fill all required fields.';
-        }
         }
     }
     }
