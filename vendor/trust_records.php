@@ -11,6 +11,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   if(!$error&&!$item)$error='Item not found in your inventory.';
   elseif(!$error&&$action==='condition'){
     $type=$_POST['inspection_type']??'manual';$score=(float)($_POST['condition_score']??0);$notes=trim($_POST['notes']??'');$reportImage=null;
+    if($order&&$type==='after_return'&&($order['status']!=='completed'||!o2oRentalHasEvent($db,$orderId,'returned')))$error='An after-return report can only be recorded after the rental is returned.';
+    elseif($order&&$type==='before_rental'&&$order['status']!=='new')$error='A before-rental report must be recorded before the rental is handed over.';
     if(!in_array($type,['before_rental','after_return','manual'],true))$error='Invalid inspection type.';
     elseif($score<0||$score>100)$error='Condition score must be between 0 and 100.';
     elseif(isset($_FILES['report_image'])&&$_FILES['report_image']['error']!==UPLOAD_ERR_NO_FILE){
@@ -21,7 +23,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     if(!$error){$st=$db->prepare("INSERT INTO condition_reports (item_id,rental_order_id,created_by_vendor_id,inspection_type,condition_score,notes,image_path) VALUES (?,?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$type,$score,$notes,$reportImage]);if($orderId>0&&$type==='after_return')o2oRentalRecordEvent($db,$orderId,$vendorId,'inspected','After-return condition inspection recorded.');$message='Condition report saved.';}
   }elseif($action==='sanitize'){
     $status=$_POST['sanitize_status']??'completed';$notes=trim($_POST['sanitize_notes']??'');
-    if(!in_array($status,['pending','in_progress','completed'],true))$error='Invalid sanitization status.';
+    if($order&&$status==='completed'&&($order['status']!=='completed'||!o2oRentalHasEvent($db,$orderId,'returned')||!o2oRentalHasEvent($db,$orderId,'inspected')))$error='Completed sanitization requires a returned and inspected rental.';
+    elseif(!in_array($status,['pending','in_progress','completed'],true))$error='Invalid sanitization status.';
     else{$completed=$status==='completed'?date('Y-m-d H:i:s'):null;$st=$db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status,completed_at,notes) VALUES (?,?,?,?,?,?)");$st->execute([$itemId,$orderId?:null,$vendorId,$status,$completed,$notes]);if($orderId>0&&$status==='completed')o2oRentalRecordEvent($db,$orderId,$vendorId,'sanitized','Sanitization completed.');$message='Sanitization record saved.';}
   }else $error='Invalid trust action.';
 }
