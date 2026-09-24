@@ -35,3 +35,18 @@ jobs:
             fi
           done < <(find . -type f -name '*.php' -not -path './.git/*' | sort)
           exit "$failed"
+
+
+  integration_smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.2'
+          extensions: pdo_mysql, fileinfo
+          tools: none
+      - name: Run marketplace integration smoke test
+        run: php tests/integration_smoke.php
