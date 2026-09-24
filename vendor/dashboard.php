@@ -74,14 +74,31 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
     'cancelled'=>[]
   ];
   if($purchaseId>0&&isset($allowedTransitions[$buyAction])){
-    $q=$db->prepare("SELECT customer_id,order_status FROM purchase_orders WHERE id=? AND vendor_id=?");
+    $q=$db->prepare("SELECT customer_id,order_status,payment_method,payment_status,reward_credit_used FROM purchase_orders WHERE id=? AND vendor_id=?");
     $q->execute([$purchaseId,$vendorId]);
     $buyer=$q->fetch();
+    $paymentReady=$buyer&&($buyer['payment_method']==='Cash on Delivery'||$buyer['payment_status']==='paid');
+    if($buyer&&$buyAction!=='cancelled'&&!$paymentReady){
+      $buyer=null;
+    }
     if($buyer&&in_array($buyAction,$allowedTransitions[$buyer['order_status']]??[],true)){
-      $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=?");
-      $buyUpdate->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
-      if($buyUpdate->rowCount()===1 && $buyAction==='delivered'){
-        o2oAwardReward($db,(int)$buyer['customer_id'],20,'Buy order delivered','buy_delivered',(int)$purchaseId);
+      if($buyAction==='cancelled'){
+        $db->beginTransaction();
+        try{
+          $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status='cancelled',payment_status=CASE WHEN payment_status='pending' THEN 'failed' ELSE payment_status END WHERE id=? AND vendor_id=? AND order_status=?");
+          $buyUpdate->execute([$purchaseId,$vendorId,$buyer['order_status']]);
+          if($buyUpdate->rowCount()!==1)throw new RuntimeException('Buy order changed before cancellation.');
+          if((float)$buyer['reward_credit_used']>0)o2oRefundRewardCredits($db,(int)$buyer['customer_id'],(float)$buyer['reward_credit_used'],$purchaseId);
+          $db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([$purchaseId]);
+          $db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=?")->execute([$purchaseId]);
+          $db->commit();
+        }catch(Throwable $e){if($db->inTransaction())$db->rollBack();error_log('Buy cancellation failed: '.$e->getMessage());}
+      }else{
+        $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=? AND (payment_method='Cash on Delivery' OR payment_status='paid')");
+        $buyUpdate->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
+        if($buyUpdate->rowCount()===1 && $buyAction==='delivered'){
+          o2oAwardReward($db,(int)$buyer['customer_id'],20,'Buy order delivered','buy_delivered',(int)$purchaseId);
+        }
       }
       $labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];
       $label=$labels[$buyAction]??$buyAction;
