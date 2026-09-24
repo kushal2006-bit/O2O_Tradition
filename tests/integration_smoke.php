@@ -24,6 +24,12 @@ function requireText(string $path, string $needle): void {
 requireText('customer/order.php', "require_once '../shared/rewards.php';");
 requireText('customer/order.php', "o2oConsumeRewardCredits");
 requireText('customer/order.php', "o2oNotifyVendor");
+requireText('customer/order.php', "o2oCreateRazorpayOrder");
+requireText('customer/buy.php', "o2oCreateRazorpayOrder");
+requireText('customer/payment.php', "checkout.razorpay.com");
+requireText('customer/payment_callback.php', "o2oVerifyRazorpaySignature");
+requireText('customer/payment_webhook.php', "HTTP_X_RAZORPAY_SIGNATURE");
+requireText('shared/payments.php', "api.razorpay.com/v1/orders");
 requireText('customer/buy.php', "product_size_id");
 requireText('customer/buy.php', "o2oConsumeRewardCredits");
 requireText('customer/buy.php', "o2oNotifyVendor");
@@ -51,7 +57,10 @@ foreach ([
     'vendor_notifications',
     'latitude DECIMAL(10,7)',
     'longitude DECIMAL(10,7)',
-    'product_size_id INT NULL'
+    'product_size_id INT NULL',
+    'payment_transactions',
+    "payment_status ENUM('pending','paid','failed','refunded')",
+    "payment_method ENUM('Cash on Delivery','Online Payment')"
 ] as $needle) {
     if ($schema !== '' && strpos($schema, $needle) === false) {
         $failures[] = "Base schema is missing integration field/table: {$needle}";
