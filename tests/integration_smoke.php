@@ -109,6 +109,7 @@ requireText('shared/payment_lifecycle.php', "status='failed'");
 requireText('shared/payment_lifecycle.php', "Payment attempt expired after 30 minutes");
 requireText('customer/payment.php', "o2oExpirePendingPayments");
 requireText('customer/payment_webhook.php', "if(\$tx['status']==='created')");
+requireText('customer/payment_webhook.php', "retry remains available");
 requireText('cron/expire_pending_payments.php', "o2oExpirePendingPayments");
 
 requireText('vendor/size_charts.php', "product_sizes");
