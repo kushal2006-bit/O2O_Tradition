@@ -50,7 +50,7 @@ requireText('vendor/notifications.php', "vendor_notifications");
 requireText('customer/map.php', "latitude");
 requireText('customer/map.php', "value=\"1\">1 km");
 requireText('customer/map.php', "value=\"3\">3 km");
-requireText('customer/map.php', "value=\"5\">5 km");
+requireText('customer/map.php', "value=\"5\" selected>5 km");
 requireText('customer/map.php', "value=\"10\">10 km");
 requireText('customer/map.php', "function distanceKm");
 requireText('customer/map.php', "const inside=km<=radius;");
