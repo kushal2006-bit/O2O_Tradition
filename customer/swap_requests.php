@@ -2,6 +2,7 @@
 session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
+require_once '../shared/rewards.php';
 o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
@@ -59,6 +60,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $reject->execute([$requestId,$request['swap_listing_id'],$request['offered_swap_listing_id'],$request['swap_listing_id'],$request['offered_swap_listing_id']]);
 
       $db->commit();
+      o2oAwardReward($db,(int)$request['requester_id'],25,'Accepted swap','swap_accepted',$requestId);
+      o2oAwardReward($db,(int)$request['target_owner'],25,'Accepted swap','swap_accepted',$requestId);
       notifySwap($db,(int)$request['requester_id'],'Swap accepted','Your swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).' was accepted. Both items are now matched.');
       notifySwap($db,(int)$request['target_owner'],'Swap accepted','You accepted swap request #'.str_pad($requestId,6,'0',STR_PAD_LEFT).'. Both items are now matched.');
       foreach($superseded as $pendingRequest){

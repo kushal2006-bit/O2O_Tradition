@@ -1,6 +1,6 @@
 <?php
 session_start();require_once '../shared/config.php';
-require_once '../shared/security.php';require_once '../shared/notifications.php';
+require_once '../shared/security.php';require_once '../shared/notifications.php';require_once '../shared/rewards.php';
 o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];$storeName=$_SESSION['vendor_name'];
 $vendorNotificationStmt=$db->prepare("SELECT COUNT(*) FROM vendor_notifications WHERE vendor_id=? AND is_read=0");$vendorNotificationStmt->execute([$vendorId]);$unreadVendorNotifications=(int)$vendorNotificationStmt->fetchColumn();
 function addCustomerNotification(PDO $db,int $customerId,string $type,string $title,string $message):void{$db->prepare("INSERT INTO notifications(customer_id,type,title,message) VALUES(?,?,?,?)")->execute([$customerId,$type,$title,$message]);}
@@ -9,7 +9,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['action'])){o2oRequireCsrf(
   $update->execute([$orderId,$vendorId]);
   if($update->rowCount()===1)addCustomerNotification($db,(int)$r['customer_id'],'rental_status','Rental is active','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' is confirmed and now active.');
 }}elseif($_POST['action']==='complete'){$actual=$_POST['actual_return_date']??date('Y-m-d');$st=$db->prepare("SELECT o.*,i.late_charge_per_day FROM orders o JOIN items i ON o.item_id=i.id WHERE o.id=? AND o.vendor_id=?");$st->execute([$orderId,$vendorId]);$o=$st->fetch();if($o){$lateDays=max(0,(int)ceil((strtotime($actual)-strtotime($o['return_date']))/86400));$lateCharge=$lateDays*$o['late_charge_per_day'];$db->beginTransaction();try{
-  $db->prepare("UPDATE orders SET status='completed',actual_return_date=?,late_days=?,late_charges=? WHERE id=? AND vendor_id=?")->execute([$actual,$lateDays,$lateCharge,$orderId,$vendorId]);
+  $up=$db->prepare("UPDATE orders SET status='completed',actual_return_date=?,late_days=?,late_charges=? WHERE id=? AND vendor_id=? AND status='in_progress'");
+  $up->execute([$actual,$lateDays,$lateCharge,$orderId,$vendorId]);
+  if($up->rowCount()!==1) throw new RuntimeException('Rental order was already completed or is no longer active.');
+  o2oAwardReward($db,(int)$o['customer_id'],50,'Completed rental','rental_completed',(int)$orderId);
   $db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status) VALUES (?,?,?,'pending')")->execute([$o['item_id'],$orderId,$vendorId]);addCustomerNotification($db,(int)$o['customer_id'],'rental_status','Rental returned','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' has been marked returned. Inspection and sanitization are now pending.');
   $db->commit();
 }catch(Throwable $e){$db->rollBack();}}}header('Location: dashboard.php');exit;}
@@ -28,8 +31,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
     $q->execute([$purchaseId,$vendorId]);
     $buyer=$q->fetch();
     if($buyer&&in_array($buyAction,$allowedTransitions[$buyer['order_status']]??[],true)){
-      $db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=?")
-        ->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
+      $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=?");
+      $buyUpdate->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
+      if($buyUpdate->rowCount()===1 && $buyAction==='delivered'){
+        o2oAwardReward($db,(int)$buyer['customer_id'],20,'Buy order delivered','buy_delivered',(int)$purchaseId);
+      }
       $labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];
       $label=$labels[$buyAction]??$buyAction;
       addCustomerNotification($db,(int)$buyer['customer_id'],'buy_status','Buy order updated','Your buy order #'.str_pad($purchaseId,6,'0',STR_PAD_LEFT).' is now '.$label.'.');
