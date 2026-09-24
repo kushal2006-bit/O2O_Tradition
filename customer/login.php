@@ -18,13 +18,28 @@ if (isLoggedIn('customer')) {
 
 $error = '';
 $success = '';
+$resendMessage = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!hash_equals($_SESSION['csrf_token'], $_POST['csrf_token'] ?? '')) { $error = 'Invalid form session. Please refresh and try again.'; }
     else {
     $action = $_POST['action'] ?? 'login';
 
-    if ($action === 'login') {
+    if ($action === 'resend_verification') {
+        $email=trim($_POST['resend_email']??'');
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)){ $error='Enter a valid email address.'; }
+        else{
+            $db=getDB();
+            $st=$db->prepare("SELECT id,name,email,email_verified_at,verification_last_sent_at FROM customers WHERE email=? LIMIT 1");$st->execute([$email]);$customer=$st->fetch();
+            if(!$customer || !empty($customer['email_verified_at'])){ $resendMessage='If that account needs verification, a new email will be sent.'; }
+            elseif(!empty($customer['verification_last_sent_at']) && strtotime($customer['verification_last_sent_at'])>time()-60){ $error='Please wait at least 60 seconds before requesting another verification email.'; }
+            else{
+                $token=o2oCreateVerificationToken($db,(int)$customer['id']);
+                if($token && o2oSendVerificationEmail($customer['email'],$customer['name'],$token)) $resendMessage='A new verification email has been sent. The link expires in 30 minutes.';
+                else $error='The verification email could not be sent. Check production mail settings.';
+            }
+        }
+    } elseif ($action === 'login') {
         $email = trim($_POST['email'] ?? '');
         $password = $_POST['password'] ?? '';
 
@@ -79,7 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $tokenHash = hash('sha256', $token);
                     $stmt = $db->prepare("INSERT INTO customers (name, email, phone, pincode, address, password, verification_token_hash, verification_expires_at) VALUES (?,?,?,?,?,?,?,DATE_ADD(NOW(), INTERVAL 30 MINUTE))");
                     $stmt->execute([$name, $email, $phone, $pincode, $address, $hash, $tokenHash]);
-                    if (o2oSendVerificationEmail($email, $name, $token)) {
+                    if ($db->prepare('UPDATE customers SET verification_last_sent_at=NOW() WHERE id=?')->execute([(int)$db->lastInsertId()]) && o2oSendVerificationEmail($email, $name, $token)) {
                         $success = 'Registration complete. Check your email to verify your account before signing in.';
                     } else {
                         $error = 'Registration saved, but the verification email could not be sent. Production mail settings are not configured yet.';
@@ -341,6 +356,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php if ($error): ?>
     <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
+    <?php if ($resendMessage): ?><div class="alert" style="background:#ECFDF5;color:#065F46;border-left:3px solid #10B981"><?= htmlspecialchars($resendMessage) ?></div><?php endif; ?>
 
     <div id="tab-login" class="form-section active">
       <div class="form-title">Welcome Back</div>
@@ -358,7 +374,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <button type="submit" class="btn-primary">Sign In</button>
       </form>
-      <div class="demo-note"><strong>Demo:</strong> customer@test.com / password</div>
+      <div class="demo-note">Need a new verification link? Enter your email below.</div>
+      <form method="POST" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+        <input type="hidden" name="action" value="resend_verification">
+        <div class="field"><label>Email Address</label><input type="email" name="resend_email" placeholder="you@example.com" required></div>
+        <button type="submit" class="btn-primary">Resend Verification Email</button>
+      </form>
     </div>
 
     <div id="tab-register" class="form-section">
@@ -388,7 +410,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
           <div class="field">
             <label>Password *</label>
-            <input type="password" name="reg_password" placeholder="Min 6 chars" required>
+            <input type="password" name="reg_password" placeholder="Min 8 chars" required>
           </div>
         </div>
         <div class="field">
