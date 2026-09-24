@@ -12,7 +12,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       $up=$db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status='pending_review'");
       $up->execute([$status,$id]);
       if($up->rowCount()===1){
-        o2oNotifyCustomer($db,(int)$listing['seller_id'],'sell_listing_review','Sell listing '.($action==='approve'?'approved':'rejected'), 'Your sell listing "'.($listing['title']??'item').'" was '.($action==='approve'?'approved and is now visible in the marketplace.':'rejected during vendor review.');
+        o2oNotifyCustomer($db,(int)$listing['seller_id'],'sell_listing_review','Sell listing '.($action==='approve'?'approved':'rejected'), 'Your sell listing "'.($listing['title']??'item').'" was '.($action==='approve'?'approved and is now visible in the marketplace.':'rejected during vendor review.'));
       }
     }
   }
