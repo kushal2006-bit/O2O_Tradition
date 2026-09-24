@@ -271,7 +271,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
 
 <main class="main">
   <?php
-  $homeRecStmt = $db->prepare("SELECT i.id,i.name,i.description,i.image_path,i.category,i.rent_per_day,v.store_name,
+  $homeRecStmt = $db->prepare("SELECT i.id,i.name,i.description,i.image_path,i.category,i.quality,i.rent_per_day,v.store_name,
       COALESCE((SELECT pm.mode FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),'rent') AS rec_mode,
       COALESCE((SELECT pm.price FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'buy','rent','sell','swap'),pm.id LIMIT 1),i.rent_per_day) AS rec_price,
       (CASE WHEN EXISTS(SELECT 1 FROM wishlists w WHERE w.customer_id=? AND w.item_id=i.id) THEN 50 ELSE 0 END)
