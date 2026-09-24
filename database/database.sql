@@ -14,7 +14,13 @@ CREATE TABLE IF NOT EXISTS customers (
     pincode VARCHAR(10),
     address TEXT,
     password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    email_verified_at TIMESTAMP NULL,
+    verification_token_hash CHAR(64) NULL,
+    verification_expires_at TIMESTAMP NULL,
+    failed_login_count INT NOT NULL DEFAULT 0,
+    locked_until TIMESTAMP NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_customers_verification_token (verification_token_hash)
 );
 
 -- Vendors Table
