@@ -25,7 +25,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     else {
     $action = $_POST['action'] ?? 'login';
 
-    if ($action === 'resend_verification') {
+    if ($action === 'forgot_password') {
+        $email=trim($_POST['forgot_email']??'');
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)){ $error='Enter a valid email address.'; }
+        else{
+            $db=getDB();
+            $st=$db->prepare("SELECT id,name,email,password_reset_last_sent_at FROM customers WHERE email=? LIMIT 1");$st->execute([$email]);$customer=$st->fetch();
+            if($customer && (!empty($customer['password_reset_last_sent_at']) && strtotime($customer['password_reset_last_sent_at'])>time()-60)){
+                $resendMessage='If that account exists, a password reset email will be sent.';
+            }elseif($customer){
+                $token=o2oCreatePasswordResetToken($db,(int)$customer['id']);
+                if($token && o2oSendPasswordResetEmail($customer['email'],$customer['name'],$token)) $resendMessage='If that account exists, a password reset email has been sent. The link expires in 30 minutes.';
+                else $error='The password reset email could not be sent. Check production mail settings.';
+            }else{
+                $resendMessage='If that account exists, a password reset email has been sent.';
+            }
+        }
+    } elseif ($action === 'resend_verification') {
         $email=trim($_POST['resend_email']??'');
         if(!filter_var($email,FILTER_VALIDATE_EMAIL)){ $error='Enter a valid email address.'; }
         else{
@@ -348,6 +364,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
   </div>
   <div class="form-panel">
+    <div style="margin:0 0 20px;padding:12px;background:#FFFBEB;border:1px solid #FDE68A;font-size:12px">
+      Forgot your password? Use the reset form below. We never reveal whether an email address is registered.
+      <form method="POST" style="margin-top:10px">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+        <input type="hidden" name="action" value="forgot_password">
+        <input type="email" name="forgot_email" placeholder="Account email" required style="width:100%;padding:10px;box-sizing:border-box;border:1px solid #DDD">
+        <button class="btn-primary" type="submit">Send Password Reset</button>
+      </form>
+    </div>
+
     <div class="tab-row">
       <button class="tab-btn active" onclick="switchTab('login', this)">Login</button>
       <button class="tab-btn" onclick="switchTab('register', this)">Sign Up</button>
