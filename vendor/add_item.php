@@ -34,7 +34,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!empty($_FILES['item_image']['name'])) {
             $dir = '../uploads/items/';
             if (!is_dir($dir)) {
-                mkdir($dir, 0777, true);
+                mkdir($dir, 0755, true);
             }
 
             $ext = strtolower(pathinfo($_FILES['item_image']['name'], PATHINFO_EXTENSION));
