@@ -4,7 +4,7 @@ require_once '../shared/security.php';
 require_once '../shared/notifications.php';
 o2oCsrfToken();if(!isset($_SESSION['admin_id'])){header('Location: login.php');exit;} $db=getDB();$adminId=(int)$_SESSION['admin_id'];$msg='';$err='';
 if($_SERVER['REQUEST_METHOD']==='POST'){
-  o2oRequireCsrf();$type=$_POST['target_type']??'';$id=(int)($_POST['id']??0);$action=$_POST['action']??'';$map=['seller'=>['active','cancelled'],'swap'=>['active','cancelled']];if(!isset($map[$type])||!in_array($action,$map[$type],true)||$id<1)$err='Invalid moderation request.';else{try{$db->beginTransaction();if($type==='seller'){
+  o2oRequireCsrf();$type=$_POST['target_type']??'';$id=(int)($_POST['id']??0);$action=$_POST['action']??'';$map=['seller'=>['cancelled'],'swap'=>['cancelled']];if(!isset($map[$type])||!in_array($action,$map[$type],true)||$id<1)$err='Invalid moderation request.';else{try{$db->beginTransaction();if($type==='seller'){
 $s=$db->prepare("SELECT id,status,seller_id,title FROM seller_listings WHERE id=? FOR UPDATE");$s->execute([$id]);$row=$s->fetch();if(!$row)throw new Exception('Listing not found.');
 $allowedFrom=['pending_review','active'];if(!in_array($row['status'],$allowedFrom,true))throw new Exception('Listing is no longer available for moderation.');
 $db->prepare("UPDATE seller_listings SET status=? WHERE id=? AND status IN ('pending_review','active')")->execute([$action,$id]);if($db->rowCount()===0)throw new Exception('Listing status was already changed.');
