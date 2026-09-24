@@ -57,8 +57,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
         $ins=$db->prepare("INSERT INTO swap_requests (swap_listing_id,requester_id,offered_item_id,offered_swap_listing_id,message,status) VALUES (?,?,NULL,?,?, 'pending')");
         $ins->execute([$listingId,$customerId,$offeredId,$message]);
+        $swapRequestId=(int)$db->lastInsertId();
         $db->commit();
-        o2oNotifyCustomer($db,(int)$target['owner_id'],'swap_request','New swap request','You received swap request #'.str_pad((int)$db->lastInsertId(),6,'0',STR_PAD_LEFT).' for "'.($target['title']??'your listing').'".');
+        o2oNotifyCustomer($db,(int)$target['owner_id'],'swap_request','New swap request','You received swap request #'.str_pad($swapRequestId,6,'0',STR_PAD_LEFT).' for "'.($target['title']??'your listing').'".');
         header('Location: swap.php?sent=1');exit;
       }catch(Throwable $e){
         if($db->inTransaction()) $db->rollBack();
