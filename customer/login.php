@@ -66,7 +66,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $customer = $stmt->fetch();
 
             if ($customer && password_verify($password, $customer['password'])) {
-                if (!empty($customer['locked_until']) && strtotime($customer['locked_until']) > time()) { $error = 'Too many failed attempts. Please try again later.'; }
+                if (($customer['account_status'] ?? 'active') !== 'active') { $error = 'This account is deactivated. Contact support to restore access.'; }
+                elseif (!empty($customer['locked_until']) && strtotime($customer['locked_until']) > time()) { $error = 'Too many failed attempts. Please try again later.'; }
                 elseif (empty($customer['email_verified_at'])) { $error = 'Please verify your email address before signing in.'; }
                 else {
                 session_regenerate_id(true);
