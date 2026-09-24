@@ -61,6 +61,7 @@ CREATE TABLE IF NOT EXISTS orders (
     total_rent DECIMAL(10,2),
     late_days INT DEFAULT 0,
     late_charges DECIMAL(10,2) DEFAULT 0,
+    reward_credit_used DECIMAL(10,2) NOT NULL DEFAULT 0,
     status ENUM('new','in_progress','completed') DEFAULT 'new',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -93,6 +94,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     customer_id INT NOT NULL,
     vendor_id INT,
     total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
+    reward_credit_used DECIMAL(10,2) NOT NULL DEFAULT 0,
     delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 0,
     payment_status ENUM('pending','paid','failed','refunded') DEFAULT 'pending',
     order_status ENUM('pending','confirmed','packed','shipped','delivered','cancelled') DEFAULT 'pending',
@@ -230,8 +232,24 @@ CREATE TABLE IF NOT EXISTS rewards (
     points INT NOT NULL,
     reason VARCHAR(255) NOT NULL,
     transaction_type ENUM('earn','redeem','adjustment') NOT NULL DEFAULT 'earn',
+    source_type VARCHAR(50) NULL,
+    source_id BIGINT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_rewards_source (customer_id, source_type, source_id),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS reward_credits (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    reward_id BIGINT NOT NULL,
+    credit_amount DECIMAL(10,2) NOT NULL,
+    balance DECIMAL(10,2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reward_credits_customer (customer_id, created_at),
+    INDEX idx_reward_credits_balance (customer_id, balance),
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS vendor_verifications (
@@ -394,6 +412,7 @@ CREATE TABLE IF NOT EXISTS seller_purchase_orders (
     buyer_id INT NOT NULL,
     seller_id INT NOT NULL,
     total_amount DECIMAL(10,2) NOT NULL,
+    reward_credit_used DECIMAL(10,2) NOT NULL DEFAULT 0,
     payment_method ENUM('Cash on Delivery') NOT NULL DEFAULT 'Cash on Delivery',
     payment_status ENUM('pending','paid','failed','refunded') DEFAULT 'pending',
     order_status ENUM('confirmed','packed','shipped','delivered','cancelled') DEFAULT 'confirmed',
