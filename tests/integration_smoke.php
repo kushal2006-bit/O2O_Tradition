@@ -147,3 +147,5 @@ requireText('database/migrations/027_wishlist_alerts.sql', "price_alert");
 requireText('database/migrations/028_wishlist_alert_state.sql', "last_notified_available");
 requireText('customer/wishlist.php', "Availability alert");
 requireText('cron/wishlist_alerts.php', "price_drop");
+requireText('database/migrations/029_admin_analytics.sql', 'admin_daily_metrics');
+requireText('admin/analytics.php', 'Completed rental and delivered purchase activity');
