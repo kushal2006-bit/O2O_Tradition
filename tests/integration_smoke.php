@@ -132,3 +132,7 @@ requireText('customer/reset_password.php', "password_reset_token_hash");
 requireText('shared/email.php', "o2oCreatePasswordResetToken");
 requireText('shared/email.php', "o2oSendPasswordResetEmail");
 requireText('database/migrations/024_password_reset.sql', "password_reset_expires_at");
+requireText('database/migrations/025_complaints_disputes.sql', "CREATE TABLE IF NOT EXISTS complaints");
+requireText('customer/complaints.php', "Submit Complaint");
+requireText('admin/complaints.php', "complaint_");
+requireText('admin/dashboard.php', "stats['complaints']");
