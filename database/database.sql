@@ -62,7 +62,8 @@ CREATE TABLE IF NOT EXISTS orders (
     product_size_id INT NULL,
     vendor_id INT NOT NULL,
     delivery_address TEXT NOT NULL,
-    payment_method ENUM('Cash on Delivery') NOT NULL,
+    payment_method ENUM('Cash on Delivery','Online Payment') NOT NULL,
+    payment_status ENUM('pending','paid','failed','refunded') NOT NULL DEFAULT 'pending',
     pickup_date DATE NOT NULL,
     return_date DATE NOT NULL,
     actual_return_date DATE,
@@ -107,6 +108,7 @@ CREATE TABLE IF NOT EXISTS purchase_orders (
     total_amount DECIMAL(10,2) NOT NULL DEFAULT 0,
     reward_credit_used DECIMAL(10,2) NOT NULL DEFAULT 0,
     delivery_charge DECIMAL(10,2) NOT NULL DEFAULT 0,
+    payment_method ENUM('Cash on Delivery','Online Payment') NOT NULL DEFAULT 'Cash on Delivery',
     payment_status ENUM('pending','paid','failed','refunded') DEFAULT 'pending',
     order_status ENUM('pending','confirmed','packed','shipped','delivered','cancelled') DEFAULT 'pending',
     shipping_address TEXT NOT NULL,
@@ -307,6 +309,28 @@ CREATE TABLE IF NOT EXISTS reward_credits (
     INDEX idx_reward_credits_balance (customer_id, balance),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (reward_id) REFERENCES rewards(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS payment_transactions (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    order_type ENUM('rental','purchase') NOT NULL,
+    order_id INT NOT NULL,
+    provider VARCHAR(30) NOT NULL DEFAULT 'razorpay',
+    provider_order_id VARCHAR(80) NOT NULL,
+    provider_payment_id VARCHAR(80) NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    currency CHAR(3) NOT NULL DEFAULT 'INR',
+    status ENUM('created','paid','failed','refunded') NOT NULL DEFAULT 'created',
+    signature VARCHAR(128) NULL,
+    failure_reason VARCHAR(255) NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    paid_at TIMESTAMP NULL,
+    UNIQUE KEY uq_payment_provider_order (provider, provider_order_id),
+    UNIQUE KEY uq_payment_order (order_type, order_id),
+    UNIQUE KEY uq_payment_provider_payment (provider, provider_payment_id),
+    INDEX idx_payment_customer (customer_id, created_at),
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS vendor_verifications (
