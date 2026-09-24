@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS orders (
     late_days INT DEFAULT 0,
     late_charges DECIMAL(10,2) DEFAULT 0,
     reward_credit_used DECIMAL(10,2) NOT NULL DEFAULT 0,
-    status ENUM('new','in_progress','completed') DEFAULT 'new',
+    status ENUM('new','in_progress','completed','cancelled') DEFAULT 'new',
     notes TEXT,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
