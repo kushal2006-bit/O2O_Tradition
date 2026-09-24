@@ -12,7 +12,12 @@ $db = getDB();
 $customerId=(int)$_SESSION['customer_id'];
 $rewardCredit=o2oRewardCreditBalance($db,$customerId);
 $itemId = intval($_GET['item_id'] ?? 0);
-$itemStmt = $db->prepare("SELECT i.*, v.store_name, v.address as store_address, v.phone as store_phone FROM items i JOIN vendors v ON i.vendor_id=v.id WHERE i.id=? AND i.available=1");
+$itemStmt = $db->prepare("SELECT i.*, v.store_name, v.address as store_address, v.phone as store_phone,
+    COALESCE(pm.security_deposit,0) AS security_deposit
+    FROM items i
+    JOIN vendors v ON i.vendor_id=v.id
+    LEFT JOIN product_modes pm ON pm.item_id=i.id AND pm.mode='rent' AND pm.available=1
+    WHERE i.id=? AND i.available=1");
 $itemStmt->execute([$itemId]);
 $item = $itemStmt->fetch();
 if (!$item) { header('Location: home.php'); exit; }
