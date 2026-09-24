@@ -2,10 +2,14 @@
 session_start();
 require_once '../shared/config.php';
 requireLogin('customer', 'login.php');
+require_once '../shared/notifications.php';
 
 $db = getDB();
 $customerName = $_SESSION['customer_name'];
-$customerPincode = $_SESSION['customer_pincode'];
+$customerPincode = $_SESSION['customer_pincode'] ?? '';
+$notificationStmt = $db->prepare("SELECT COUNT(*) FROM notifications WHERE customer_id=? AND is_read=0");
+$notificationStmt->execute([(int)$_SESSION['customer_id']]);
+$unreadNotifications=(int)$notificationStmt->fetchColumn();
 
 $search = trim($_GET['search'] ?? '');
 $pincode = trim($_GET['pincode'] ?? $customerPincode);
