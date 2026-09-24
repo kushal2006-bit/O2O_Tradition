@@ -19,9 +19,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&!$error){
       if(!$locked || (int)$locked['seller_id']===$buyerId)throw new Exception('This listing is no longer available.');
       $ins=$db->prepare("INSERT INTO seller_purchase_orders (listing_id,buyer_id,seller_id,total_amount,shipping_address) VALUES (?,?,?,?,?)");
       $ins->execute([$id,$buyerId,$locked['seller_id'],$locked['price'],$address]);
+      $saleOrderId=(int)$db->lastInsertId();
       $db->prepare("UPDATE seller_listings SET status='sold' WHERE id=?")->execute([$id]);
       $db->commit();
-      o2oNotifyCustomer($db,(int)$locked['seller_id'],'sell_order','New pre-owned sale','Your listing "'.($locked['title']??'item').'" was purchased. Sale order #'.str_pad((int)$db->lastInsertId(),6,'0',STR_PAD_LEFT).' is confirmed.');
+      o2oNotifyCustomer($db,(int)$locked['seller_id'],'sell_order','New pre-owned sale','Your listing "'.($locked['title']??'item').'" was purchased. Sale order #'.str_pad($saleOrderId,6,'0',STR_PAD_LEFT).' is confirmed.');
       header('Location: orders.php?purchase=1');exit;
     }catch(Throwable $e){if($db->inTransaction())$db->rollBack();$error=$e->getMessage();}
   }
