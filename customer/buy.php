@@ -3,13 +3,11 @@ session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
 require_once '../shared/notifications.php';
-require_once '../shared/rewards.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
 $db = getDB();
 $customerId = (int)$_SESSION['customer_id'];
-$rewardCredit = o2oRewardCreditBalance($db, $customerId);
 $itemId = (int)($_GET['item_id'] ?? $_POST['item_id'] ?? 0);
 
 $itemStmt = $db->prepare("SELECT i.*, v.store_name, v.address AS store_address, v.pincode AS store_pincode,
@@ -60,7 +58,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     o2oRequireCsrf();
     $address = trim($_POST['shipping_address'] ?? '');
     $paymentMethod = $_POST['payment_method'] ?? 'Cash on Delivery';
-    $useRewardCredit = isset($_POST['use_reward_credit']);
     $productSizeId = (int)($_POST['product_size_id'] ?? 0);
 
     if ($address === '') {
@@ -87,18 +84,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
 
             $total = (float)$available['price'];
-            $creditApplied = $useRewardCredit ? o2oConsumeRewardCredits($db, $customerId, $total) : 0.0;
-            $payableTotal = max(0, round($total - $creditApplied, 2));
             $order = $db->prepare("INSERT INTO purchase_orders
-                (customer_id, vendor_id, total_amount, reward_credit_used, delivery_charge, payment_status, order_status, shipping_address)
-                VALUES (?, ?, ?, ?, 0, 'pending', 'confirmed', ?)");
-            $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $address]);
+                (customer_id, vendor_id, total_amount, delivery_charge, payment_status, order_status, shipping_address)
+                VALUES (?, ?, ?, 0, 'pending', 'confirmed', ?)");
+            $order->execute([$customerId, $available['vendor_id'], $total, $address]);
             $orderId = (int)$db->lastInsertId();
 
             $line = $db->prepare("INSERT INTO purchase_order_items
                 (order_id, item_id, product_size_id, quantity, unit_price, total_price)
                 VALUES (?, ?, ?, 1, ?, ?)");
-            $line->execute([$orderId, $itemId, $productSizeId ?: null, $total, $payableTotal]);
+            $line->execute([$orderId, $itemId, $productSizeId ?: null, $total, $total]);
 
             $disable = $db->prepare("UPDATE product_modes SET available=0 WHERE item_id=? AND mode='buy'");
             $disable->execute([$itemId]);
@@ -136,14 +131,14 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <a href="item.php?id=<?=$itemId?>" style="color:#C9A84C">← Back to item</a>
 <h1>Buy <?=htmlspecialchars($item['name'])?></h1>
 <p class="muted"><?=htmlspecialchars($item['store_name'])?> · <?=htmlspecialchars($item['store_address'])?></p>
-<div class="summary"><strong>Purchase total</strong><div class="price">₹<?=number_format((float)$item['buy_price'],0)?></div><p class="muted">Delivery charge: ₹0 in this development step. Reward credit available: ₹<?=number_format($rewardCredit,2)?></p></div>
+<div class="summary"><strong>Purchase total</strong><div class="price">₹<?=number_format((float)$item['buy_price'],0)?></div><p class="muted">Delivery charge: ₹0 in this development step.</p></div>
 <?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
 <form method="POST">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <input type="hidden" name="item_id" value="<?=$itemId?>">
 <?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div class="muted">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="shipping_address" required><?=htmlspecialchars($_POST['shipping_address'] ?? $customer['address'] ?? '')?></textarea></div>
-<div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply available reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
+<div class="field"><label>Payment Method</label><select name="payment_method"><option>Cash on Delivery</option></select></div>
 <button class="btn" type="submit">Place Buy Order</button>
 </form>
 </div></body></html>

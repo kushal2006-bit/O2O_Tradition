@@ -3,13 +3,10 @@ session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
 require_once '../shared/notifications.php';
-require_once '../shared/rewards.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
 $db = getDB();
-$customerId=(int)$_SESSION['customer_id'];
-$rewardCredit=o2oRewardCreditBalance($db,$customerId);
 $itemId = intval($_GET['item_id'] ?? 0);
 $itemStmt = $db->prepare("SELECT i.*, v.store_name, v.address as store_address, v.phone as store_phone FROM items i JOIN vendors v ON i.vendor_id=v.id WHERE i.id=? AND i.available=1");
 $itemStmt->execute([$itemId]);
@@ -44,7 +41,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     o2oRequireCsrf();
     $address=trim($_POST['delivery_address']??'');
     $payment=$_POST['payment_method']??'';
-    $useRewardCredit=isset($_POST['use_reward_credit']);
     $pickup=$_POST['pickup_date']??'';
     $return=$_POST['return_date']??'';
     $productSizeId=(int)($_POST['product_size_id']??0);
@@ -70,10 +66,8 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             if($overlap->fetch()) throw new RuntimeException('This item is already booked for part of those dates.');
             $days=(strtotime($return)-strtotime($pickup))/86400;
             $total=$days*$item['rent_per_day'];
-            $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$total):0.0;
-            $payableTotal=max(0,round($total-$creditApplied,2));
-            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,reward_credit_used,status) VALUES (?,?,?,?,?,?,?,?,?,?, 'new')");
-            $stmt->execute([$customerId,$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$payableTotal,$creditApplied]);
+            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,status) VALUES (?,?,?,?,?,?,?,?,?,'new')");
+            $stmt->execute([$_SESSION['customer_id'],$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
             $orderId=(int)$db->lastInsertId();
             $db->commit();
             o2oNotifyVendor($db, (int)$item['vendor_id'], 'rental_order', 'New rental order', 'Rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
@@ -104,7 +98,7 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div style="font-size:11px;color:#888;margin-top:5px">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
-<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
+<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
 <div class="estimate-box" id="estimateBox" style="display:none">Estimated Rent: <strong id="estimateAmt">₹0</strong><div id="estimateDays" style="font-size:12px;color:#888;margin-top:4px"></div></div>
 <button type="submit" class="btn-order">Confirm & Place Order</button></form></div></div></div>

@@ -2,7 +2,6 @@
 session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
-require_once '../shared/rewards.php';
 o2oCsrfToken();
 requireLogin('customer','login.php');
 $db=getDB();
@@ -39,10 +38,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){o2oRequireCsrf();
       $up=$db->prepare("UPDATE seller_purchase_orders SET order_status=? WHERE id=? AND seller_id=? AND order_status=?");
       $up->execute([$newStatus,$orderId,$sellerId,$order['order_status']]);
       if($up->rowCount()===1){
-        if($newStatus==='delivered'){
-          o2oAwardReward($db,(int)$order['buyer_id'],20,'Pre-owned purchase delivered','resale_purchase',(int)$orderId);
-          o2oAwardReward($db,$sellerId,40,'Pre-owned sale delivered','resale_sale',(int)$orderId);
-        }
         notify($db,(int)$order['buyer_id'],'seller_order_status','Pre-owned purchase updated','Your pre-owned purchase #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' is now '.ucfirst($newStatus).'.');
         $message='Order #'.str_pad((string)$orderId,6,'0',STR_PAD_LEFT).' updated to '.ucfirst($newStatus).'.';
       } else {
