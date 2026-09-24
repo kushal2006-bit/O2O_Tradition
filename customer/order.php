@@ -74,11 +74,6 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             if($overlap->fetch()) throw new RuntimeException('This item is already booked for part of those dates.');
             $days=(strtotime($return)-strtotime($pickup))/86400;
             $baseRent=round($days*(float)$item['rent_per_day'],2);
-            $securityDeposit=round((float)($item['security_deposit']??0),2);
-            $deliveryCharge=max(0,round((float)(getenv('O2O_DELIVERY_CHARGE')?:0),2));
-            $preCreditTotal=round($baseRent+$securityDeposit+$deliveryCharge,2);
-            $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$preCreditTotal):0.0;
-            $finalTotal=max(0,round($preCreditTotal-$creditApplied,2));
             $securityDeposit=round((float)$lockRow['security_deposit'],2);
             $deliveryCharge=max(0,round((float)(getenv('O2O_DELIVERY_CHARGE')?:0),2));
             $preCreditTotal=round($baseRent+$securityDeposit+$deliveryCharge,2);
