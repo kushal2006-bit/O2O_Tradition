@@ -4,6 +4,7 @@ require_once '../shared/config.php';
 require_once '../shared/security.php';
 require_once '../shared/notifications.php';
 require_once '../shared/rewards.php';
+require_once '../shared/payments.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
@@ -49,6 +50,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
     $return=$_POST['return_date']??'';
     $productSizeId=(int)($_POST['product_size_id']??0);
     $allowedPayments=['Cash on Delivery'];
+    if (o2oRazorpayConfigured()) $allowedPayments[]='Online Payment';
     if (!$address || !$payment || !$pickup || !$return) {
         $error='Please fill in all required fields.';
     } elseif ($sizes && !$productSizeId) {
@@ -79,12 +81,25 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $preCreditTotal=round($baseRent+$securityDeposit+$deliveryCharge,2);
             $creditApplied=$useRewardCredit?o2oConsumeRewardCredits($db,$customerId,$preCreditTotal):0.0;
             $finalTotal=max(0,round($preCreditTotal-$creditApplied,2));
-            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,pickup_date,return_date,total_rent,security_deposit,delivery_charge,final_total,reward_credit_used,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?, 'new')");
-            $stmt->execute([$customerId,$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$baseRent,$securityDeposit,$deliveryCharge,$finalTotal,$creditApplied]);
+            $gateway=null;
+            if ($payment==='Online Payment') {
+                $gateway=o2oCreateRazorpayOrder($finalTotal, 'O2O-R-'.bin2hex(random_bytes(6)));
+            }
+            $paymentStatus=$payment==='Online Payment'?'pending':'pending';
+            $stmt=$db->prepare("INSERT INTO orders (customer_id,item_id,product_size_id,vendor_id,delivery_address,payment_method,payment_status,pickup_date,return_date,total_rent,security_deposit,delivery_charge,final_total,reward_credit_used,status) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?, 'new')");
+            $stmt->execute([$customerId,$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$paymentStatus,$pickup,$return,$baseRent,$securityDeposit,$deliveryCharge,$finalTotal,$creditApplied]);
             $orderId=(int)$db->lastInsertId();
+            if ($gateway) {
+                $pt=$db->prepare("INSERT INTO payment_transactions (customer_id,order_type,order_id,provider,provider_order_id,amount,currency,status) VALUES (?,?,?,?,?,?,?,'created')");
+                $pt->execute([$customerId,'rental',$orderId,'razorpay',$gateway['id'],$finalTotal,'INR']);
+            }
             $db->commit();
-            o2oNotifyVendor($db, (int)$item['vendor_id'], 'rental_order', 'New rental order', 'Rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
-            header('Location: order_success.php?order_id='.$orderId);
+            if ($gateway) {
+                header('Location: payment.php?type=rental&id='.$orderId);
+            } else {
+                o2oNotifyVendor($db, (int)$item['vendor_id'], 'rental_order', 'New rental order', 'Rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
+                header('Location: order_success.php?order_id='.$orderId);
+            }
             exit;
         } catch(Throwable $e) {
             if($db->inTransaction()) $db->rollBack();
@@ -111,7 +126,7 @@ $tomorrow=date('Y-m-d',strtotime('+1 day'));
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
 <?php if($sizes):?><div class="field"><label>Size *</label><select name="product_size_id" required><option value="">Select size</option><?php foreach($sizes as $size):?><option value="<?=$size['id']?>" <?=$selectedSizeId===(int)$size['id']?'selected':''?>><?=htmlspecialchars($size['size_label'])?></option><?php endforeach;?></select><div style="font-size:11px;color:#888;margin-top:5px">Your measurement profile is used to preselect the closest available size when possible.</div></div><?php endif;?>
 <div class="field"><label>Delivery Address *</label><textarea name="delivery_address" rows="3" required><?=htmlspecialchars($customer['address']??'')?></textarea></div>
-<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
+<div class="field"><label>Payment Method *</label><select name="payment_method" required><option value="">Select payment method</option><option>Cash on Delivery</option><?php if(o2oRazorpayConfigured()):?><option>Online Payment</option><?php endif;?></select></div><?php if($rewardCredit>0):?><div class="field"><label><input type="checkbox" name="use_reward_credit" value="1" <?=isset($_POST["use_reward_credit"])?"checked":""?>> Apply reward credit (up to ₹<?=number_format($rewardCredit,2)?>)</label></div><?php endif;?>
 <div class="field-row"><div class="field"><label>Pickup Date *</label><input type="date" name="pickup_date" id="pickupDate" min="<?=$today?>" required onchange="calcTotal()"></div><div class="field"><label>Return Date *</label><input type="date" name="return_date" id="returnDate" min="<?=$tomorrow?>" required onchange="calcTotal()"></div></div>
 <div class="estimate-box" id="estimateBox" style="display:none">Estimated Total: <strong id="estimateAmt">₹0</strong><div id="estimateDays" style="font-size:12px;color:#888;margin-top:4px"></div></div>
 <button type="submit" class="btn-order">Confirm & Place Order</button></form></div></div></div>
