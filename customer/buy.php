@@ -86,19 +86,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 throw new RuntimeException('This item was just purchased or is no longer available.');
             }
 
-            $total = (float)$available['price'];
-            $creditApplied = $useRewardCredit ? o2oConsumeRewardCredits($db, $customerId, $total) : 0.0;
-            $payableTotal = max(0, round($total - $creditApplied, 2));
+            $subtotal = round((float)$available['price'],2);
+            $deliveryCharge = max(0, round((float)(getenv('O2O_DELIVERY_CHARGE') ?: 0),2));
+            $preCreditTotal = round($subtotal + $deliveryCharge,2);
+            $creditApplied = $useRewardCredit ? o2oConsumeRewardCredits($db, $customerId, $preCreditTotal) : 0.0;
+            $payableTotal = max(0, round($preCreditTotal - $creditApplied, 2));
             $order = $db->prepare("INSERT INTO purchase_orders
                 (customer_id, vendor_id, total_amount, reward_credit_used, delivery_charge, payment_status, order_status, shipping_address)
                 VALUES (?, ?, ?, ?, 0, 'pending', 'confirmed', ?)");
-            $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $address]);
+            $order->execute([$customerId, $available['vendor_id'], $payableTotal, $creditApplied, $deliveryCharge, $address]);
             $orderId = (int)$db->lastInsertId();
 
             $line = $db->prepare("INSERT INTO purchase_order_items
                 (order_id, item_id, product_size_id, quantity, unit_price, total_price)
                 VALUES (?, ?, ?, 1, ?, ?)");
-            $line->execute([$orderId, $itemId, $productSizeId ?: null, $total, $payableTotal]);
+            $line->execute([$orderId, $itemId, $productSizeId ?: null, $subtotal, $subtotal]);
 
             $disable = $db->prepare("UPDATE product_modes SET available=0 WHERE item_id=? AND mode='buy'");
             $disable->execute([$itemId]);
@@ -136,7 +138,7 @@ body{font-family:Arial,sans-serif;background:#FAF6EE;color:#3D2B0F;margin:0}.nav
 <a href="item.php?id=<?=$itemId?>" style="color:#C9A84C">← Back to item</a>
 <h1>Buy <?=htmlspecialchars($item['name'])?></h1>
 <p class="muted"><?=htmlspecialchars($item['store_name'])?> · <?=htmlspecialchars($item['store_address'])?></p>
-<div class="summary"><strong>Purchase total</strong><div class="price">₹<?=number_format((float)$item['buy_price'],0)?></div><p class="muted">Delivery charge: ₹0 in this development step. Reward credit available: ₹<?=number_format($rewardCredit,2)?></p></div>
+<div class="summary"><strong>Purchase total</strong><div class="price">₹<?=number_format((float)$item['buy_price'],0)?></div><p class="muted">Delivery charge: ₹<?=number_format(max(0,(float)(getenv('O2O_DELIVERY_CHARGE')?:0)),2)?> · Reward credit available: ₹<?=number_format($rewardCredit,2)?></p><div style="margin-top:12px;font-size:13px">Payable total before reward credit: <b>₹<?=number_format((float)$item['buy_price']+max(0,(float)(getenv('O2O_DELIVERY_CHARGE')?:0)),2)?></b></div></div>
 <?php if($error):?><div class="error"><?=htmlspecialchars($error)?></div><?php endif;?>
 <form method="POST">
 <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
