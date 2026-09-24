@@ -2,6 +2,7 @@
 session_start();
 require_once '../shared/config.php';
 require_once '../shared/security.php';
+require_once '../shared/notifications.php';
 o2oCsrfToken();
 requireLogin('customer', 'login.php');
 
@@ -69,6 +70,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST') {
             $stmt->execute([$_SESSION['customer_id'],$item['id'],$productSizeId?:null,$item['vendor_id'],$address,$payment,$pickup,$return,$total]);
             $orderId=(int)$db->lastInsertId();
             $db->commit();
+            o2oNotifyVendor($db, (int)$item['vendor_id'], 'rental_order', 'New rental order', 'Rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' was placed for '.($item['name']??'an item').'.');
             header('Location: order_success.php?order_id='.$orderId);
             exit;
         } catch(Throwable $e) {
