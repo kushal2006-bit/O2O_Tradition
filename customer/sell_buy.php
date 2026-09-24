@@ -1,6 +1,7 @@
 <?php
 session_start();require_once '../shared/config.php';
 require_once '../shared/security.php';
+require_once '../shared/notifications.php';
 o2oCsrfToken();requireLogin('customer','login.php');$db=getDB();$buyerId=(int)$_SESSION['customer_id'];
 $id=(int)($_GET['id']??0);$error='';$message='';
 $st=$db->prepare("SELECT sl.*,c.name seller_name,c.phone seller_phone,c.address seller_address FROM seller_listings sl JOIN customers c ON c.id=sl.seller_id WHERE sl.id=? AND sl.status='active'");
@@ -19,7 +20,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'&&!$error){
       $ins=$db->prepare("INSERT INTO seller_purchase_orders (listing_id,buyer_id,seller_id,total_amount,shipping_address) VALUES (?,?,?,?,?)");
       $ins->execute([$id,$buyerId,$locked['seller_id'],$locked['price'],$address]);
       $db->prepare("UPDATE seller_listings SET status='sold' WHERE id=?")->execute([$id]);
-      $db->commit();header('Location: orders.php?purchase=1');exit;
+      $db->commit();
+      o2oNotifyCustomer($db,(int)$locked['seller_id'],'sell_order','New pre-owned sale','Your listing "'.($locked['title']??'item').'" was purchased. Sale order #'.str_pad((int)$db->lastInsertId(),6,'0',STR_PAD_LEFT).' is confirmed.');
+      header('Location: orders.php?purchase=1');exit;
     }catch(Throwable $e){if($db->inTransaction())$db->rollBack();$error=$e->getMessage();}
   }
 }
