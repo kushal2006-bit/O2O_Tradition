@@ -54,6 +54,11 @@ requireText('admin/verifications.php', "o2oNotifyVendor");
 requireText('admin/moderation.php', "admin_actions");
 requireText('admin/moderation.php', "o2oNotifyCustomer");
 requireText('admin/audit.php', "FROM admin_actions");
+requireText('customer/store.php', "CUSTOMER RATINGS");
+requireText('customer/store.php', "pickup_instructions");
+requireText('customer/store.php', "delivery_available");
+requireText('vendor/dashboard.php', "save_store_profile");
+
 
 $schema = requireFile('database/database.sql');
 foreach ([
@@ -66,7 +71,11 @@ foreach ([
     'payment_transactions',
     "payment_status ENUM('pending','paid','failed','refunded')",
     "payment_method ENUM('Cash on Delivery','Online Payment')",
-    'rental_tracking_events'
+    'rental_tracking_events',
+    'opening_time TIME',
+    'closing_time TIME',
+    'pickup_instructions VARCHAR(500)',
+    'delivery_available TINYINT(1)'
 ] as $needle) {
     if ($schema !== '' && strpos($schema, $needle) === false) {
         $failures[] = "Base schema is missing integration field/table: {$needle}";
