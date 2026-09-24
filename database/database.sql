@@ -143,7 +143,8 @@ CREATE TABLE IF NOT EXISTS swap_listings (
     location VARCHAR(255),
     status ENUM('active','matched','completed','cancelled') DEFAULT 'active',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (owner_id) REFERENCES customers(id) ON DELETE CASCADE
+    FOREIGN KEY (owner_id) REFERENCES customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL
 );
 
 CREATE TABLE IF NOT EXISTS swap_requests (
@@ -181,7 +182,8 @@ CREATE TABLE IF NOT EXISTS wishlists (
     item_id INT NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     UNIQUE KEY uq_wishlist (customer_id, item_id),
-    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
+    FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
+    FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS user_events (
