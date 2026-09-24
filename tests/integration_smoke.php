@@ -136,3 +136,7 @@ requireText('database/migrations/025_complaints_disputes.sql', "CREATE TABLE IF 
 requireText('customer/complaints.php', "Submit Complaint");
 requireText('admin/complaints.php', "complaint_");
 requireText('admin/dashboard.php', "stats['complaints']");
+requireText('database/migrations/026_customer_account_controls.sql', "account_status");
+requireText('customer/account.php', "Deactivate My Account");
+requireText('customer/account.php', "email_notifications_enabled");
+requireText('customer/login.php', "account_status");
