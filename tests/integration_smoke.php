@@ -154,3 +154,6 @@ requireText('customer/complete_look.php', 'Save This Complete Look');
 requireText('customer/saved_looks.php', 'Saved Complete Looks');
 requireText('customer/privacy.php', 'Download your account data');
 requireText('customer/account.php', 'privacy.php');
+requireText('shared/payments.php', 'o2oRefundRazorpayPayment');
+requireText('admin/refunds.php', 'Full Refund');
+requireText('admin/dashboard.php', 'refunds.php');
