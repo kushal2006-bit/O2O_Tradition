@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__.'/rewards.php';
 function o2oExpirePendingPayments(PDO $db, int $ageMinutes = 30): int
 {
     $ageMinutes = max(5, min(1440, $ageMinutes));
