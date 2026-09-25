@@ -29,8 +29,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $email=trim($_POST['otp_email']??'');
         if(!filter_var($email,FILTER_VALIDATE_EMAIL)){$error='Enter a valid email address.';}else{$db=getDB();$st=$db->prepare("SELECT id,name,email,email_verified_at,otp_last_sent_at FROM customers WHERE email=? LIMIT 1");$st->execute([$email]);$customer=$st->fetch();if($customer&&$customer['email_verified_at']&&(!$customer['otp_last_sent_at']||strtotime($customer['otp_last_sent_at'])<=time()-60)){$otp=o2oCreateLoginOtp($db,(int)$customer['id']);if($otp&&o2oSendLoginOtpEmail($customer['email'],$customer['name'],$otp))$resendMessage='If that account is eligible, a sign-in code has been sent. It expires in 10 minutes.';else$error='The sign-in code could not be sent. Check production mail settings.';}else{$resendMessage='If that account is eligible, a sign-in code has been sent.';}}
     } elseif ($action === 'otp_login') {
-        $email=trim($_POST['otp_email']??'');$otp=trim($_POST['otp']??'');
-        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!preg_match('/^[0-9]{6}$/',$otp)){$error='Enter your email and the 6-digit code.';}else{$db=getDB();$st=$db->prepare("SELECT * FROM customers WHERE email=? LIMIT 1");$st->execute([$email]);$customer=$st->fetch();$valid=$customer&&($customer['account_status']??'active')==='active'&&!empty($customer['email_verified_at'])&&!empty($customer['otp_token_hash'])&&!empty($customer['otp_expires_at'])&&strtotime($customer['otp_expires_at'])>time()&&(int)$customer['otp_failed_attempts']<5;if($valid&&hash_equals($customer['otp_token_hash'],hash('sha256',$otp))){session_regenerate_id(true);$_SESSION['csrf_token']=bin2hex(random_bytes(32));$_SESSION['customer_id']=$customer['id'];$_SESSION['customer_name']=$customer['name'];$_SESSION['customer_pincode']=$customer['pincode'];$db->prepare("UPDATE customers SET otp_token_hash=NULL,otp_expires_at=NULL,otp_failed_attempts=0 WHERE id=?")->execute([(int)$customer['id']]);header('Location: home.php');exit;}if($customer){$db->prepare("UPDATE customers SET otp_failed_attempts=LEAST(otp_failed_attempts+1,5) WHERE id=?")->execute([(int)$customer['id']);}$error='Invalid or expired sign-in code.';}
+        $email=trim($_POST['otp_email']??'');
+        $otp=trim($_POST['otp']??'');
+        if(!filter_var($email,FILTER_VALIDATE_EMAIL)||!preg_match('/^[0-9]{6}$/',$otp)){
+            $error='Enter your email and the 6-digit code.';
+        } else {
+            $db=getDB();
+            $st=$db->prepare("SELECT * FROM customers WHERE email=? LIMIT 1");
+            $st->execute([$email]);
+            $customer=$st->fetch();
+            $valid=false;
+            if($customer){
+                $valid=($customer['account_status']??'active')==='active'
+                    && !empty($customer['email_verified_at'])
+                    && !empty($customer['otp_token_hash'])
+                    && !empty($customer['otp_expires_at'])
+                    && strtotime($customer['otp_expires_at'])>time()
+                    && (int)$customer['otp_failed_attempts']<5;
+            }
+            if($valid && hash_equals($customer['otp_token_hash'],hash('sha256',$otp))){
+                session_regenerate_id(true);
+                $_SESSION['csrf_token']=bin2hex(random_bytes(32));
+                $_SESSION['customer_id']=$customer['id'];
+                $_SESSION['customer_name']=$customer['name'];
+                $_SESSION['customer_pincode']=$customer['pincode'];
+                $clear=$db->prepare("UPDATE customers SET otp_token_hash=NULL,otp_expires_at=NULL,otp_failed_attempts=0 WHERE id=?");
+                $clear->execute([(int)$customer['id']]);
+                header('Location: home.php');
+                exit;
+            }
+            if($customer){
+                $failed=$db->prepare("UPDATE customers SET otp_failed_attempts=LEAST(otp_failed_attempts+1,5) WHERE id=?");
+                $failed->execute([(int)$customer['id']]);
+            }
+            $error='Invalid or expired sign-in code.';
+        }
+
     } elseif ($action === 'forgot_password') {
         $email=trim($_POST['forgot_email']??'');
         if(!filter_var($email,FILTER_VALIDATE_EMAIL)){ $error='Enter a valid email address.'; }
