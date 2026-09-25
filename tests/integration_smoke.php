@@ -161,6 +161,8 @@ requireText('.htaccess', 'Never expose source/configuration');
 requireText('shared/.htaccess', 'Block direct access to shared internals');
 requireText('shared/security.php', 'Permissions-Policy');
 requireText('shared/security.php', 'Cross-Origin-Opener-Policy');
+requireText('database/migrate.php', 'CLI only');
+requireText('database/migrate.php', 'schema_migrations');
 requireText('database/migrations/031_vendor_review_responses.sql', 'vendor_responded_at');
 requireText('vendor/reviews.php', 'Save Response');
 requireText('customer/item.php', 'Vendor response');
