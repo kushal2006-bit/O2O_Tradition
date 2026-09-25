@@ -174,6 +174,8 @@ requireText('database/migrations/034_payment_webhook_idempotency.sql', 'payment_
 requireText('customer/payment_webhook.php', 'refund.processed');
 requireText('customer/payment_webhook.php', 'refund.failed');
 requireText('admin/refunds.php', "refund_status='created'");
+requireText('cron/expire_pending_payments.php', "PHP_SAPI!=='cli'");
+requireText('cron/wishlist_alerts.php', "PHP_SAPI!=='cli'");
 requireText('shared/security.php', 'Content-Security-Policy');
 requireText('customer/payment_webhook.php', 'payment_refunded');
 requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
