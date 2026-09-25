@@ -178,6 +178,7 @@ requireText('cron/expire_pending_payments.php', "PHP_SAPI!=='cli'");
 requireText('cron/wishlist_alerts.php', "PHP_SAPI!=='cli'");
 requireText('database/migrate.php', "GET_LOCK('o2o_tradition_migrations',10)");
 requireText('customer/payment_callback.php', 'Payment verification could not be completed.');
+requireText('customer/tryon.php', "status='failed'");
 requireText('shared/security.php', 'Content-Security-Policy');
 requireText('customer/payment_webhook.php', 'payment_refunded');
 requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
