@@ -14,6 +14,17 @@ sort($files,SORT_NATURAL);
 $applied=$db->query("SELECT migration FROM schema_migrations ORDER BY migration")->fetchAll(PDO::FETCH_COLUMN);
 $appliedMap=array_fill_keys($applied,true);
 $pending=array_values(array_filter($files,fn($f)=>!isset($appliedMap[basename($f)])));
+$mode=$argv[1]??'';
+if($mode==='--status'||$mode==='--dry-run'){
+    echo "Applied migrations: ".count($applied)."\n";
+    foreach($files as $file){
+        $name=basename($file);
+        echo (isset($appliedMap[$name])?'APPLIED ':'PENDING ').$name."\n";
+    }
+    if($mode==='--dry-run')echo "No changes made.\n";
+    exit(0);
+}
+if($mode!==''){$allowed=['--status','--dry-run'];fwrite(STDERR,"Unknown option. Use --status or --dry-run.\n");exit(2);}
 if(!$pending){echo "No pending migrations.\n";exit(0);}
 foreach($pending as $file){
     $name=basename($file);
