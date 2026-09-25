@@ -181,7 +181,7 @@ requireText('customer/payment_callback.php', 'Payment verification could not be 
 requireText('customer/tryon.php', "status='failed'");
 requireText('shared/email.php', 'o2oMailFrom');
 requireText('shared/email.php', 'preg_match(\'/[\\r\\n]/\',$from)');
-requireText('shared/email.php', "preg_match('#^https://#i'",
+requireText('shared/email.php', "preg_match('#^https://#i'");
 requireText('shared/security.php', 'Content-Security-Policy');
 requireText('customer/payment_webhook.php', 'payment_refunded');
 requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
