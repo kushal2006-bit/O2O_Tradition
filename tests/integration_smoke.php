@@ -190,6 +190,8 @@ requireText('shared/email.php', 'preg_match(\'/[\\r\\n]/\',$from)');
 requireText('shared/email.php', "preg_match('#^https://#i'");
 requireText('shared/security.php', 'Content-Security-Policy');
 requireText('customer/payment_webhook.php', 'payment_refunded');
+requireText('customer/payment_webhook.php', 'Webhook amount or currency mismatch.');
+requireText('customer/payment_callback.php', 'Payment amount, currency, or capture status could not be verified.');
 requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
 requireText('database/migrations/035_payment_refund_reconciliation.sql', 'provider_refund_id');
 requireText('customer/logout.php', "'samesite'=>'Lax'");
