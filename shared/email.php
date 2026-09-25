@@ -1,8 +1,18 @@
 <?php
-function o2oSendVerificationEmail(string $to,string $name,string $token): bool {
+function o2oMailFrom(): string {
     $from=trim((string)(getenv('O2O_MAIL_FROM')?:''));
-    if($from==='') return false;
+    if($from===''||preg_match('/[\r\n]/',$from)||!filter_var($from,FILTER_VALIDATE_EMAIL)) return '';
+    return $from;
+}
+function o2oAppUrl(): string {
     $base=rtrim((string)(getenv('O2O_APP_URL')?:''),'/');
+    if($base===''||preg_match('/[\r\n]/',$base)||!preg_match('#^https://#i',$base)) return '';
+    return $base;
+}
+function o2oSendVerificationEmail(string $to,string $name,string $token): bool {
+    $from=o2oMailFrom();
+    if($from==='') return false;
+    $base=o2oAppUrl();
     if($base==='') return false;
     $url=$base.'/customer/verify_email.php?token='.rawurlencode($token);
     $subject='Verify your O2O Tradition account';
@@ -30,8 +40,8 @@ function o2oCreatePasswordResetToken(PDO $db, int $customerId): ?string {
 }
 
 function o2oSendPasswordResetEmail(string $to,string $name,string $token): bool {
-    $from=trim((string)(getenv('O2O_MAIL_FROM')?:''));
-    $base=rtrim((string)(getenv('O2O_APP_URL')?:''),'/');
+    $from=o2oMailFrom();
+    $base=o2oAppUrl();
     if($from===''||$base==='') return false;
     $url=$base.'/customer/reset_password.php?token='.rawurlencode($token);
     $subject='Reset your O2O Tradition password';
@@ -48,7 +58,7 @@ function o2oCreateLoginOtp(PDO $db,int $customerId): ?string {
     return $st->rowCount()===1?$otp:null;
 }
 function o2oSendLoginOtpEmail(string $to,string $name,string $otp): bool {
-    $from=trim((string)(getenv('O2O_MAIL_FROM')?:''));
+    $from=o2oMailFrom();
     if($from==='')return false;
     $subject='Your O2O Tradition sign-in code';
     $body="Hello ".$name.",\n\nYour O2O Tradition sign-in code is: ".$otp."\n\nThis code expires in 10 minutes. If you did not request it, you can ignore this email.";
