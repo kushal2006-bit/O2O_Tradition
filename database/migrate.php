@@ -3,6 +3,9 @@
 if(PHP_SAPI!=='cli'){http_response_code(403);exit("CLI only.\n");}
 require_once __DIR__.'/../shared/config.php';
 $db=getDB();
+$lock=(int)$db->query("SELECT GET_LOCK('o2o_tradition_migrations',10)")->fetchColumn();
+if($lock!==1){fwrite(STDERR,"Could not acquire migration lock. Another migration may be running.\n");exit(1);}
+register_shutdown_function(function() use ($db){try{$db->query("SELECT RELEASE_LOCK('o2o_tradition_migrations')");}catch(Throwable $e){}});
 $db->exec("CREATE TABLE IF NOT EXISTS schema_migrations (
     id INT AUTO_INCREMENT PRIMARY KEY,
     migration VARCHAR(255) NOT NULL UNIQUE,
