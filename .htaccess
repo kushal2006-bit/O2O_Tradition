@@ -1,0 +1,10 @@
+Options -Indexes
+
+# Never expose source/configuration or database artifacts through Apache.
+<FilesMatch "(^\.|\.sql$|\.md$|config\.php$|config\.example\.php$|composer\.(json|lock)$)">
+    Require all denied
+</FilesMatch>
+
+# Block direct access to internal application directories.
+RewriteEngine On
+RewriteRule ^(?:database|tests|cron)/ - [F,L]
