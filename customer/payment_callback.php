@@ -71,11 +71,15 @@ try {
     $pt->execute([$providerPaymentId,$signature,(int)$row['transaction_id']]);
     if($pt->rowCount()!==1) throw new RuntimeException('Payment was already processed.');
     if($type==='rental'){
-        $db->prepare("UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'")->execute([$orderId]);
+        $orderUpdate=$db->prepare("UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'");
+        $orderUpdate->execute([$orderId]);
+        if($orderUpdate->rowCount()!==1) throw new RuntimeException('Rental order payment state could not be finalized.');
         $vendorId=(int)$row['vendor_id'];
         $itemName='rental item';
     }else{
-        $db->prepare("UPDATE purchase_orders SET payment_status='paid' WHERE id=? AND payment_status='pending'")->execute([$orderId]);
+        $orderUpdate=$db->prepare("UPDATE purchase_orders SET payment_status='paid' WHERE id=? AND payment_status='pending'");
+        $orderUpdate->execute([$orderId]);
+        if($orderUpdate->rowCount()!==1) throw new RuntimeException('Purchase order payment state could not be finalized.');
         $vendorId=(int)$row['vendor_id'];
         $itemName='purchase item';
     }
