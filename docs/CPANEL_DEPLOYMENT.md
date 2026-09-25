@@ -32,7 +32,7 @@ This file is intentionally ignored by Git and must never be committed.
 
 ## 3. Production configuration
 
-Set these environment variables in the PHP/cPanel runtime, or define equivalent values in the private `shared/config.php` where the application expects them:
+Configure the values in the PHP/cPanel runtime. The database and Razorpay values are consumed by `shared/config.php`, but the application/email and external-service values below are read directly from the PHP environment; do not assume that adding them to `shared/config.php` will configure them unless the application code is changed to support that.
 
 ### Required database values
 
@@ -67,6 +67,7 @@ Use the exact HTTPS production URL and the same webhook secret configured on the
 - `OPENAI_API_KEY` for OpenAI-backed assistant functionality.
 - `O2O_AI_MODEL` is optional; the current default is `gpt-5.6-luna`.
 - `HF_TOKEN` is required only if the virtual try-on integration is enabled.
+- `O2O_HF_TOKEN_FILE` is optional; when set, it points to a private PHP file outside the public web root that defines `$HF_TOKEN`. This is an alternative to `HF_TOKEN` for the virtual try-on integration.
 
 Never place API keys in Git, HTML, JavaScript, screenshots, or chat messages.
 
