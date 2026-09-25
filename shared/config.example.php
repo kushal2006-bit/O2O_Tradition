@@ -18,7 +18,7 @@ define('O2O_AI_MODEL', getenv('O2O_AI_MODEL') ?: 'gpt-5.6-luna');
 define('O2O_RAZORPAY_KEY_ID', getenv('O2O_RAZORPAY_KEY_ID') ?: '');
 define('O2O_RAZORPAY_KEY_SECRET', getenv('O2O_RAZORPAY_KEY_SECRET') ?: '');
 define('O2O_RAZORPAY_WEBHOOK_SECRET', getenv('O2O_RAZORPAY_WEBHOOK_SECRET') ?: '');
-// HF_TOKEN is intentionally read directly from the environment by customer/tryon.php.
+// HF_TOKEN is read directly from the environment by customer/tryon.php.\n// Optionally set O2O_HF_TOKEN_FILE to a private PHP file outside the public web root.
 
 function getDB() {
     static $pdo = null;
