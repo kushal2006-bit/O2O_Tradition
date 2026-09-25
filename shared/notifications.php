@@ -6,7 +6,7 @@ function o2oSendOptionalCustomerEmail(PDO $db,int $customerId,string $title,stri
     if($customerId<=0)return;
     $st=$db->prepare("SELECT name,email,email_notifications_enabled FROM customers WHERE id=? AND account_status='active' LIMIT 1");$st->execute([$customerId]);$customer=$st->fetch();
     if(!$customer||!(int)$customer['email_notifications_enabled']||trim((string)$customer['email'])==='')return;
-    $from=trim((string)(getenv('O2O_MAIL_FROM')?:''));if($from==='')return;
+    $from=o2oMailFrom();if($from==='')return;
     $headers="From: ".$from."\r\nContent-Type: text/plain; charset=UTF-8\r\n";
     @mail((string)$customer['email'],'O2O Tradition · '.$title,"Hello ".($customer['name']??'').",\n\n".$message."\n\nYou can review this update in your O2O Tradition account.",$headers);
 }
