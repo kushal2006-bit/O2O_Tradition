@@ -39,4 +39,19 @@ function o2oSendPasswordResetEmail(string $to,string $name,string $token): bool 
     $headers="From: ".$from."\r\nContent-Type: text/plain; charset=UTF-8\r\n";
     return @mail($to,$subject,$body,$headers);
 }
+function o2oCreateLoginOtp(PDO $db,int $customerId): ?string {
+    if($customerId<=0)return null;
+    $otp=(string)random_int(100000,999999);
+    $hash=hash('sha256',$otp);
+    $st=$db->prepare("UPDATE customers SET otp_token_hash=?,otp_expires_at=DATE_ADD(NOW(),INTERVAL 10 MINUTE),otp_last_sent_at=NOW(),otp_failed_attempts=0 WHERE id=? AND account_status='active' AND email_verified_at IS NOT NULL");
+    $st->execute([$hash,$customerId]);
+    return $st->rowCount()===1?$otp:null;
+}
+function o2oSendLoginOtpEmail(string $to,string $name,string $otp): bool {
+    $from=trim((string)(getenv('O2O_MAIL_FROM')?:''));
+    if($from==='')return false;
+    $subject='Your O2O Tradition sign-in code';
+    $body="Hello ".$name.",\n\nYour O2O Tradition sign-in code is: ".$otp."\n\nThis code expires in 10 minutes. If you did not request it, you can ignore this email.";
+    return @mail($to,$subject,$body,"From: ".$from."\r\nContent-Type: text/plain; charset=UTF-8\r\n");
+}
 ?>
