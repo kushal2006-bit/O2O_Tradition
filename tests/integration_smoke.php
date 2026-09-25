@@ -163,6 +163,8 @@ requireText('shared/security.php', 'Permissions-Policy');
 requireText('shared/security.php', 'Cross-Origin-Opener-Policy');
 requireText('database/migrate.php', 'CLI only');
 requireText('database/migrate.php', 'schema_migrations');
+requireText('database/migrate.php', '--status');
+requireText('database/migrate.php', '--dry-run');
 requireText('database/migrations/032_customer_email_otp.sql', 'otp_token_hash');
 requireText('shared/email.php', 'o2oCreateLoginOtp');
 requireText('customer/login.php', 'otp_login');
