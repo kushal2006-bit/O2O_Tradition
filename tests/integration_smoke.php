@@ -193,6 +193,7 @@ requireText('uploads/.htaccess', '.php|phtml|phar|php[0-9]*');
 requireText('shared/payments.php', 'Invalid online payment amount.');
 requireText('shared/payments.php', 'is_finite($amount)');
 requireText('shared/email.php', 'o2oMailFrom');
+requireText('shared/notifications.php', 'o2oMailFrom();');
 requireText('shared/email.php', 'preg_match(\'/[\\r\\n]/\',$from)');
 requireText('shared/email.php', "preg_match('#^https://#i'");
 requireText('shared/security.php', 'Content-Security-Policy');
