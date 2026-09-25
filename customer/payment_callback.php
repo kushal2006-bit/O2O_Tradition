@@ -65,7 +65,7 @@ try {
     if(!o2oVerifyRazorpaySignature($row['provider_order_id'],$providerPaymentId,$signature)) throw new RuntimeException('Payment signature verification failed.');
     $gatewayPayment=o2oFetchRazorpayPayment($providerPaymentId);
     $expectedPaise=(int)round((float)($type==='rental'?$row['final_total']:$row['total_amount'])*100);
-    if((int)($gatewayPayment['amount']??-1)!==$expectedPaise || ($gatewayPayment['order_id']??'')!==$row['provider_order_id'] || ($gatewayPayment['status']??'')!=='captured') throw new RuntimeException('Payment amount or capture status could not be verified.');
+    if((int)($gatewayPayment['amount']??-1)!==$expectedPaise || ($gatewayPayment['currency']??'')!=='INR' || ($gatewayPayment['order_id']??'')!==$row['provider_order_id'] || ($gatewayPayment['status']??'')!=='captured') throw new RuntimeException('Payment amount, currency, or capture status could not be verified.');
 
     $pt=$db->prepare("UPDATE payment_transactions SET provider_payment_id=?,signature=?,status='paid',paid_at=NOW() WHERE id=? AND status='created'");
     $pt->execute([$providerPaymentId,$signature,(int)$row['transaction_id']]);
