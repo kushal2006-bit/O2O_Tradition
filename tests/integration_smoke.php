@@ -159,6 +159,8 @@ requireText('shared/notifications.php', 'email_notifications_enabled');
 requireText('database/migrations/016_auth_security.sql', 'Safe to rerun on an existing database');
 requireText('.htaccess', 'Never expose source/configuration');
 requireText('shared/.htaccess', 'Block direct access to shared internals');
+requireText('shared/security.php', 'Permissions-Policy');
+requireText('shared/security.php', 'Cross-Origin-Opener-Policy');
 requireText('database/migrations/031_vendor_review_responses.sql', 'vendor_responded_at');
 requireText('vendor/reviews.php', 'Save Response');
 requireText('customer/item.php', 'Vendor response');
