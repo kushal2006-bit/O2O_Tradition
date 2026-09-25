@@ -41,7 +41,7 @@ try{
    if($providerRefundId===''){throw new RuntimeException('Refund ID missing.');}
  } else {
    $actualPaise=(int)($entity['amount']??-1);
-   if($actualPaise!==$expectedPaise){throw new RuntimeException('Webhook amount mismatch.');}
+   if($actualPaise!==$expectedPaise || ($entity['currency']??'')!=='INR'){throw new RuntimeException('Webhook amount or currency mismatch.');}
  }
  if($event==='order.paid' || $event==='payment.captured'){
    if($tx['status']==='created'){
