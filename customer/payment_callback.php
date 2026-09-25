@@ -86,6 +86,6 @@ try {
     if(isset($db) && $db instanceof PDO && $db->inTransaction()) $db->rollBack();
     error_log('O2O payment callback failed: '.$e->getMessage());
     http_response_code(400);
-    echo json_encode(['ok'=>false,'error'=>$e->getMessage()]);
+    echo json_encode(['ok'=>false,'error'=>'Payment verification could not be completed. Please check My Orders or try again.']);
 }
 ?>
