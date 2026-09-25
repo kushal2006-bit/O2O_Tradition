@@ -67,6 +67,7 @@ $reviewCount = (int)$reviewCountStmt->fetchColumn();
 $itemRatingStmt = $db->prepare("SELECT AVG(rating) average_rating FROM reviews WHERE item_id = ?");
 $itemRatingStmt->execute([$itemId]);
 $itemAverageRating = $itemRatingStmt->fetchColumn();
+$reviewListStmt=$db->prepare("SELECT r.rating,r.review,r.vendor_response,r.vendor_responded_at,r.created_at,c.name customer_name FROM reviews r JOIN customers c ON c.id=r.customer_id WHERE r.item_id=? ORDER BY r.created_at DESC LIMIT 10");$reviewListStmt->execute([$itemId]);$itemReviews=$reviewListStmt->fetchAll();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -191,7 +192,7 @@ body{font-family:'Jost',sans-serif;background:var(--cream);color:var(--text)}
         <div class="review-points"><div><b>Positive points</b><?php if($positive):foreach($positive as $p):?><div>• <?=htmlspecialchars($p)?></div><?php endforeach;else:?><span class="review-muted">No positive themes recorded.</span><?php endif;?></div><div><b>Common complaints</b><?php if($complaints):foreach($complaints as $p):?><div>• <?=htmlspecialchars($p)?></div><?php endforeach;else:?><span class="review-muted">No common complaints recorded.</span><?php endif;?></div></div>
         <div class="note">Generated <?=date('d M Y',strtotime($reviewSummary['generated_at']))?> from customer reviews. The summary is AI-generated and may miss context.</div>
       <?php elseif($reviewCount): ?><div class="note">Reviews exist, but an AI summary has not been generated yet.</div><?php else: ?><div class="note">No customer reviews yet.</div><?php endif; ?>
-    </div>
+    </div><?php if($itemReviews): ?><div style="margin-top:16px"><b>Recent customer reviews</b><?php foreach($itemReviews as $rv): ?><div style="border-top:1px solid var(--border);padding:12px 0"><div><?=str_repeat('★',(int)$rv['rating']).str_repeat('☆',5-(int)$rv['rating'])?> · <?=htmlspecialchars($rv['customer_name'])?></div><div class="note"><?=nl2br(htmlspecialchars($rv['review']??''))?></div><?php if(trim((string)($rv['vendor_response']??''))!==''): ?><div style="margin-top:8px;padding:10px;background:#FDFAF5;border-left:3px solid var(--gold)"><b>Vendor response</b><div class="note"><?=nl2br(htmlspecialchars($rv['vendor_response']))?></div></div><?php endif; ?></div><?php endforeach; ?></div><?php endif; ?>
 
     <form method="POST" action="wishlist.php" style="margin-bottom:12px"><input type="hidden" name="item_id" value="<?= (int)$item['id'] ?>"><input type="hidden" name="action" value="<?= $isSaved ? 'remove' : 'add' ?>"><button class="btn-rent" type="submit" style="background:#FFF9E9;color:#7A5600;border:1px solid #C9A84C"><?= $isSaved ? '♥ Remove from Saved Items' : '♡ Save This Item' ?></button></form>
 
