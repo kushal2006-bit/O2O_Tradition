@@ -27,6 +27,7 @@ if($event==='refund.processed' || $event==='refund.failed') {
 
 try{
  $db=getDB();$db->beginTransaction();
+ $notifyRefunded=false;$notifyCustomerId=0;$notifyOrderType='';$notifyOrderId=0;
  if($eventId!==''){
    $ins=$db->prepare("INSERT INTO payment_webhook_events(provider,event_id,event_type) VALUES('razorpay',?,?)");
    try{$ins->execute([$eventId,$event]);}catch(PDOException $dup){if((int)$dup->errorInfo[1]===1062){$db->commit();http_response_code(200);exit('Already processed.');}throw $dup;}
@@ -55,7 +56,8 @@ try{
    if($tx['refund_status']!=='processed'){
      $db->prepare("UPDATE payment_transactions SET provider_refund_id=?,refund_status='processed',status='refunded',failure_reason=? WHERE id=? AND status='paid'")->execute([$providerRefundId,'Refund processed by Razorpay: '.$providerRefundId,(int)$tx['id']]);
      if($db->rowCount()===1){
-       if($tx['order_type']==='rental'){$db->prepare("UPDATE orders SET payment_status='refunded' WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);}
+       $notifyRefunded=true;$notifyCustomerId=(int)$tx['customer_id'];$notifyOrderType=(string)$tx['order_type'];$notifyOrderId=(int)$tx['order_id'];
+       if($tx['order_type']==='rental'){$db->prepare("UPDATE orders SET payment_status='refunded',status=CASE WHEN status='new' THEN 'cancelled' ELSE status END WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);}
        else{$db->prepare("UPDATE purchase_orders SET payment_status='refunded' WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=?")->execute([(int)$tx['order_id']]);}
      }
    }
@@ -70,6 +72,8 @@ try{
        ->execute([$providerPaymentId,'Razorpay reported a payment failure; retry remains available.',(int)$tx['id']]);
    }
  }
- $db->commit();http_response_code(200);echo 'OK';
+ $db->commit();
+ if($notifyRefunded){o2oNotifyCustomer($db,$notifyCustomerId,'payment_refunded','Payment refunded','Payment for your '.$notifyOrderType.' order #'.str_pad($notifyOrderId,6,'0',STR_PAD_LEFT).' has been refunded to the payment method.');}
+ http_response_code(200);echo 'OK';
 }catch(Throwable $e){if(isset($db)&&$db->inTransaction())$db->rollBack();error_log('O2O payment webhook failed: '.$e->getMessage());http_response_code(500);echo 'Webhook processing failed.';}
 ?>
