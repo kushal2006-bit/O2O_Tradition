@@ -45,12 +45,17 @@ try{
  }
  if($event==='order.paid' || $event==='payment.captured'){
    if($tx['status']==='created'){
-     $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,status='paid',paid_at=NOW() WHERE id=?")->execute([$providerPaymentId,(int)$tx['id']]);
      if($tx['order_type']==='rental'){
-       $db->prepare("UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'")->execute([(int)$tx['order_id']]);
+       $orderUpdate=$db->prepare("UPDATE orders SET payment_status='paid' WHERE id=? AND payment_status='pending'");
+       $orderUpdate->execute([(int)$tx['order_id']]);
+       if($orderUpdate->rowCount()!==1) throw new RuntimeException('Rental order payment state could not be finalized.');
      }else{
-       $db->prepare("UPDATE purchase_orders SET payment_status='paid' WHERE id=? AND payment_status='pending'")->execute([(int)$tx['order_id']]);
+       $orderUpdate=$db->prepare("UPDATE purchase_orders SET payment_status='paid' WHERE id=? AND payment_status='pending'");
+       $orderUpdate->execute([(int)$tx['order_id']]);
+       if($orderUpdate->rowCount()!==1) throw new RuntimeException('Purchase order payment state could not be finalized.');
      }
+     $db->prepare("UPDATE payment_transactions SET provider_payment_id=?,status='paid',paid_at=NOW() WHERE id=? AND status='created'")->execute([$providerPaymentId,(int)$tx['id']]);
+     if($db->rowCount()!==1) throw new RuntimeException('Payment transaction could not be finalized.');
    }
  }elseif($event==='refund.processed'){
    if($tx['refund_status']!=='processed'){
