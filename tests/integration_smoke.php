@@ -179,6 +179,8 @@ requireText('cron/wishlist_alerts.php', "PHP_SAPI!=='cli'");
 requireText('database/migrate.php', "GET_LOCK('o2o_tradition_migrations',10)");
 requireText('customer/payment_callback.php', 'Payment verification could not be completed.');
 requireText('customer/tryon.php', "status='failed'");
+requireText('uploads/.htaccess', 'Require all denied');
+requireText('uploads/.htaccess', '.php|phtml|phar|php[0-9]*');
 requireText('shared/email.php', 'o2oMailFrom');
 requireText('shared/email.php', 'preg_match(\'/[\\r\\n]/\',$from)');
 requireText('shared/email.php', "preg_match('#^https://#i'");
