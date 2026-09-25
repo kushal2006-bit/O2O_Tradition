@@ -8,8 +8,15 @@ function o2oCreateRazorpayOrder(float $amount, string $receipt): array {
     if (!o2oRazorpayConfigured()) {
         throw new RuntimeException('Online payment is not configured.');
     }
+    if (!is_finite($amount) || $amount <= 0 || $amount > 99999999.99) {
+        throw new RuntimeException('Invalid online payment amount.');
+    }
+    $amountPaise = (int)round($amount * 100);
+    if ($amountPaise <= 0) {
+        throw new RuntimeException('Invalid online payment amount.');
+    }
     $payload = json_encode([
-        'amount' => (int)round($amount * 100),
+        'amount' => $amountPaise,
         'currency' => 'INR',
         'receipt' => $receipt,
         'payment_capture' => 1,
