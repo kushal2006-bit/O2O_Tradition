@@ -1,6 +1,6 @@
 <?php
 session_start();require_once '../shared/config.php';require_once '../shared/security.php';o2oCsrfToken();
-$hfSecretFile='/home/o2otra0675/secure/hf_token.php';
+$hfSecretFile=trim((string)(getenv('O2O_HF_TOKEN_FILE')?:''));
 if(is_file($hfSecretFile))require_once $hfSecretFile;
 requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];$itemId=(int)($_GET['item_id']??$_POST['item_id']??0);$error='';$message='';
 $st=$db->prepare("SELECT i.*,v.store_name FROM items i JOIN vendors v ON v.id=i.vendor_id WHERE i.id=? AND i.available=1");$st->execute([$itemId]);$item=$st->fetch();if(!$item){header('Location:home.php');exit;}
