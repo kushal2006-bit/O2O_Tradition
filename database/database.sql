@@ -198,6 +198,8 @@ CREATE TABLE IF NOT EXISTS reviews (
     vendor_id INT NULL,
     rating TINYINT NOT NULL,
     review TEXT,
+    vendor_response TEXT NULL,
+    vendor_responded_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
     FOREIGN KEY (item_id) REFERENCES items(id) ON DELETE SET NULL,
