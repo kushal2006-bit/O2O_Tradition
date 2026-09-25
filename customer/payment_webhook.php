@@ -10,6 +10,7 @@ $secret=defined('O2O_RAZORPAY_WEBHOOK_SECRET')?O2O_RAZORPAY_WEBHOOK_SECRET:'';
 if($raw===''||$secret===''||$signature===''||!hash_equals(hash_hmac('sha256',$raw,$secret),$signature)){http_response_code(400);exit('Invalid webhook signature.');}
 $data=json_decode($raw,true);
 $event=$data['event']??'';
+$eventId=trim((string)($_SERVER['HTTP_X_RAZORPAY_EVENT_ID']??''));
 $entity=$data['payload']['payment']['entity']??null;
 if(!is_array($entity)){http_response_code(200);exit('Ignored.');}
 $providerOrderId=(string)($entity['order_id']??'');
@@ -18,6 +19,10 @@ if($providerOrderId===''){http_response_code(200);exit('Ignored.');}
 
 try{
  $db=getDB();$db->beginTransaction();
+ if($eventId!==''){
+   $ins=$db->prepare("INSERT INTO payment_webhook_events(provider,event_id,event_type) VALUES('razorpay',?,?)");
+   try{$ins->execute([$eventId,$event]);}catch(PDOException $dup){if((int)$dup->errorInfo[1]===1062){$db->commit();http_response_code(200);exit('Already processed.');}throw $dup;}
+ }
  $st=$db->prepare("SELECT * FROM payment_transactions WHERE provider='razorpay' AND provider_order_id=? FOR UPDATE");
  $st->execute([$providerOrderId]);$tx=$st->fetch();
  if(!$tx){$db->commit();http_response_code(200);exit('Unknown payment order.');}
