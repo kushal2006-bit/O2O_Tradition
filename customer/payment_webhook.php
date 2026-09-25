@@ -56,7 +56,7 @@ try{
      $db->prepare("UPDATE payment_transactions SET provider_refund_id=?,refund_status='processed',status='refunded',failure_reason=? WHERE id=? AND status='paid'")->execute([$providerRefundId,'Refund processed by Razorpay: '.$providerRefundId,(int)$tx['id']]);
      if($db->rowCount()===1){
        if($tx['order_type']==='rental'){$db->prepare("UPDATE orders SET payment_status='refunded' WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);}
-       else{$db->prepare("UPDATE purchase_orders SET payment_status='refunded' WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);}
+       else{$db->prepare("UPDATE purchase_orders SET payment_status='refunded' WHERE id=? AND payment_status='paid'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([(int)$tx['order_id']]);$db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=?")->execute([(int)$tx['order_id']]);}
      }
    }
  }elseif($event==='refund.failed'){
