@@ -176,6 +176,7 @@ requireText('customer/payment_webhook.php', 'refund.failed');
 requireText('admin/refunds.php', "refund_status='created'");
 requireText('cron/expire_pending_payments.php', "PHP_SAPI!=='cli'");
 requireText('cron/wishlist_alerts.php', "PHP_SAPI!=='cli'");
+requireText('database/migrate.php', "GET_LOCK('o2o_tradition_migrations',10)");
 requireText('shared/security.php', 'Content-Security-Policy');
 requireText('customer/payment_webhook.php', 'payment_refunded');
 requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
