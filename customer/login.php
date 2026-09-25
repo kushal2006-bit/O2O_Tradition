@@ -407,6 +407,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <button type="submit" class="btn-primary">Sign In</button>
       </form>
+      <div class="demo-note">Passwordless sign-in: request a one-time code by email, then enter the 6-digit code here. Codes expire after 10 minutes.</div>
+      <form method="POST" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+        <input type="hidden" name="action" value="request_otp">
+        <div class="field"><label>Email Address</label><input type="email" name="otp_email" placeholder="you@example.com" required></div>
+        <button type="submit" class="btn-primary">Send Sign-In Code</button>
+      </form>
+      <form method="POST" style="margin-top:12px">
+        <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
+        <input type="hidden" name="action" value="otp_login">
+        <div class="field"><label>Email Address</label><input type="email" name="otp_email" placeholder="you@example.com" required></div>
+        <div class="field"><label>6-Digit Code</label><input type="text" name="otp" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" required></div>
+        <button type="submit" class="btn-primary">Sign In With Code</button>
+      </form>
       <div class="demo-note">Need a new verification link? Enter your email below.</div>
       <form method="POST" style="margin-top:12px">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
