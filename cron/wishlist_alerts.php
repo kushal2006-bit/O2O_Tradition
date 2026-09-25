@@ -1,4 +1,5 @@
 <?php
+if(PHP_SAPI!=='cli'){http_response_code(403);exit("CLI only.\n");}
 require_once __DIR__.'/../shared/config.php';
 $db=getDB();$limit=200;$processed=0;$created=0;
 $st=$db->query("SELECT w.customer_id,w.item_id,w.availability_alert,w.price_alert,w.last_notified_price,w.last_notified_available,i.name,i.available,COALESCE((SELECT pm.price FROM product_modes pm WHERE pm.item_id=i.id AND pm.available=1 ORDER BY FIELD(pm.mode,'rent','buy','sell','swap'),pm.id LIMIT 1),i.rent_per_day) current_price FROM wishlists w JOIN items i ON i.id=w.item_id ORDER BY w.id LIMIT ".$limit);
