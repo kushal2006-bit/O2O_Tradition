@@ -174,7 +174,8 @@ requireText('database/migrations/034_payment_webhook_idempotency.sql', 'payment_
 requireText('customer/payment_webhook.php', 'refund.processed');
 requireText('customer/payment_webhook.php', 'refund.failed');
 requireText('admin/refunds.php', "refund_status='created'");
-requireText('customer/payment_webhook.php', 'provider_refund_id');
+requireText('customer/payment_webhook.php', 'payment_refunded');
+requireText('customer/payment_webhook.php', "status=CASE WHEN status='new' THEN 'cancelled' ELSE status END");
 requireText('database/migrations/035_payment_refund_reconciliation.sql', 'provider_refund_id');
 requireText('customer/logout.php', "'samesite'=>'Lax'");
 requireText('vendor/logout.php', "'samesite'=>'Lax'");
