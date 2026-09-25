@@ -19,9 +19,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   $requestId=(int)$db->lastInsertId();
   $avatarImage=__DIR__.'/../uploads/avatars/'.($avatar['photo_path']??'');$itemImage=__DIR__.'/../uploads/items/'.($item['image_path']??'');
   $hfToken=trim((string)(getenv('HF_TOKEN')?:($HF_TOKEN??'')));
-  if(!$hfToken)$error='Free AI provider is not configured yet.';
-  elseif(!$avatar['photo_path']||!is_file($avatarImage))$error='The selected avatar photo is unavailable.';
-  elseif(!$item['image_path']||!is_file($itemImage))$error='This item does not have a usable product image for try-on.';
+  if(!$hfToken){$db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=? AND status='processing'")->execute([$requestId]);$error='Free AI provider is not configured yet.';}
+  elseif(!$avatar['photo_path']||!is_file($avatarImage)){ $db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=? AND status='processing'")->execute([$requestId]);$error='The selected avatar photo is unavailable.';}
+  elseif(!$item['image_path']||!is_file($itemImage)){ $db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=? AND status='processing'")->execute([$requestId]);$error='This item does not have a usable product image for try-on.';}
   else{
    $hfBase='https://yisol-idm-vton.hf.space';
    $uploadFile=function($path)use($hfBase,$hfToken){
