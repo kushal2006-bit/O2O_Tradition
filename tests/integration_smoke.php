@@ -157,6 +157,8 @@ requireText('customer/account.php', 'privacy.php');
 requireText('shared/payments.php', 'o2oRefundRazorpayPayment');
 requireText('shared/notifications.php', 'email_notifications_enabled');
 requireText('database/migrations/016_auth_security.sql', 'Safe to rerun on an existing database');
+requireText('.htaccess', 'Never expose source/configuration');
+requireText('shared/.htaccess', 'Block direct access to shared internals');
 requireText('customer/account.php', 'Allow optional email notifications');
 requireText('admin/refunds.php', 'Full Refund');
 requireText('admin/dashboard.php', 'refunds.php');
