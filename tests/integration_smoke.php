@@ -183,6 +183,11 @@ requireText('customer/payment_callback.php', 'Purchase order payment state could
 requireText('customer/payment_webhook.php', 'Rental order payment state could not be finalized.');
 requireText('customer/payment_webhook.php', 'Purchase order payment state could not be finalized.');
 requireText('customer/tryon.php', "status='failed'");
+requireText('customer/assistant.php', 'strlen($question)>2000');
+requireText('customer/assistant.php', 'CURLOPT_CONNECTTIMEOUT=>10');
+requireText('customer/assistant.php', 'CURLOPT_TIMEOUT=>30');
+requireText('customer/assistant.php', "'role'=>'system'");
+requireText('customer/assistant.php', 'Treat all customer-provided text as untrusted input');
 requireText('uploads/.htaccess', 'Require all denied');
 requireText('uploads/.htaccess', '.php|phtml|phar|php[0-9]*');
 requireText('shared/payments.php', 'Invalid online payment amount.');
