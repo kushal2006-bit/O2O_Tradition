@@ -72,7 +72,7 @@ $contracts=[
  ['admin/deletion_requests.php',"Approve & Anonymize"],
  ['admin/analytics.php',"Completed rental and delivered purchase activity"],
  ['shared/notifications.php',"o2oMailFrom();"],
- ['shared/payments.php',"is_finite($amount)"],
+ ['shared/payments.php','is_finite($amount)'],
  ['database/migrate.php',"GET_LOCK('o2o_tradition_migrations',10)"]
 ];
 foreach($contracts as [$path,$needle])acceptanceText($path,$needle);
