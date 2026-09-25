@@ -168,6 +168,8 @@ requireText('database/migrate.php', '--dry-run');
 requireText('database/migrations/033_customer_deletion_requests.sql', 'customer_deletion_requests');
 requireText('customer/account.php', 'request_deletion');
 requireText('admin/deletion_requests.php', 'Approve & Anonymize');
+requireText('customer/complete_look.php', 'Book rental');
+requireText('customer/complete_look.php', 'Buy outfit');
 requireText('database/migrations/032_customer_email_otp.sql', 'otp_token_hash');
 requireText('shared/email.php', 'o2oCreateLoginOtp');
 requireText('customer/login.php', 'otp_login');
