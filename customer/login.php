@@ -96,7 +96,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     } elseif ($action === 'login') {
-        $email = trim($_POST['email'] ?? '');
+        $email = strtolower(trim($_POST['email'] ?? ''));
         $password = $_POST['password'] ?? '';
 
         if ($email && $password) {
@@ -130,7 +130,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     } elseif ($action === 'register') {
         $name     = trim($_POST['reg_name'] ?? '');
-        $email    = trim($_POST['reg_email'] ?? '');
+        $email    = strtolower(trim($_POST['reg_email'] ?? ''));
         $phone    = trim($_POST['reg_phone'] ?? '');
         $pincode  = trim($_POST['reg_pincode'] ?? '');
         $address  = trim($_POST['reg_address'] ?? '');
@@ -164,6 +164,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     }
 }
+?>
+<?php
+$postedAction = $_POST['action'] ?? '';
+$activeTab = ($postedAction === 'register' && !$success) ? 'register' : 'login';
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -375,6 +379,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     margin-bottom: 16px;
   }
   .alert-error { background: #FEF2F2; color: #991B1B; border-left: 3px solid #EF4444; }
+  .alert-success { background: #ECFDF5; color: #065F46; border-left: 3px solid #10B981; }
+  .alert-info { background: #EFF6FF; color: #1E40AF; border-left: 3px solid #3B82F6; }
   .demo-note {
     margin-top: 20px;
     padding: 12px;
@@ -416,16 +422,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </div>
 
     <div class="tab-row">
-      <button class="tab-btn active" onclick="switchTab('login', this)">Login</button>
-      <button class="tab-btn" onclick="switchTab('register', this)">Sign Up</button>
+      <button class="tab-btn <?= $activeTab === 'login' ? 'active' : '' ?>" onclick="switchTab('login', this)">Login</button>
+      <button class="tab-btn <?= $activeTab === 'register' ? 'active' : '' ?>" onclick="switchTab('register', this)">Sign Up</button>
     </div>
 
     <?php if ($error): ?>
     <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
-    <?php if ($resendMessage): ?><div class="alert" style="background:#ECFDF5;color:#065F46;border-left:3px solid #10B981"><?= htmlspecialchars($resendMessage) ?></div><?php endif; ?>
+    <?php if ($success): ?>
+    <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
+    <?php endif; ?>
+    <?php if ($resendMessage): ?><div class="alert alert-info"><?= htmlspecialchars($resendMessage) ?></div><?php endif; ?>
 
-    <div id="tab-login" class="form-section active">
+    <div id="tab-login" class="form-section <?= $activeTab === 'login' ? 'active' : '' ?>">
       <div class="form-title">Welcome Back</div>
       <div class="form-subtitle">Sign in to browse and rent attire</div>
       <form method="POST">
@@ -433,15 +442,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <input type="hidden" name="action" value="login">
         <div class="field">
           <label>Email Address</label>
-          <input type="email" name="email" placeholder="you@example.com" required>
+          <input type="email" name="email" placeholder="you@example.com" value="<?= htmlspecialchars(($postedAction === 'login' ? ($_POST['email'] ?? '') : '')) ?>" autocomplete="email" required>
         </div>
         <div class="field">
           <label>Password</label>
-          <input type="password" name="password" placeholder="Your password" required>
+          <input type="password" name="password" placeholder="Your password" autocomplete="current-password" required>
         </div>
         <button type="submit" class="btn-primary">Sign In</button>
       </form>
-      <div class="demo-note">Passwordless sign-in: request a one-time code by email, then enter the 6-digit code here. Codes expire after 10 minutes.</div>
+      <div class="demo-note">If you just created an account, verify your email first. Passwordless sign-in codes expire after 10 minutes.</div>
       <form method="POST" style="margin-top:12px">
         <input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>">
         <input type="hidden" name="action" value="request_otp">
@@ -464,7 +473,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       </form>
     </div>
 
-    <div id="tab-register" class="form-section">
+    <div id="tab-register" class="form-section <?= $activeTab === 'register' ? 'active' : '' ?>">
       <div class="form-title">Create Account</div>
       <div class="form-subtitle">Join Vasanam today</div>
       <form method="POST">
@@ -482,7 +491,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </div>
         <div class="field">
           <label>Email Address *</label>
-          <input type="email" name="reg_email" placeholder="you@example.com" required>
+          <input type="email" name="reg_email" placeholder="you@example.com" value="<?= htmlspecialchars(($postedAction === 'register' ? ($_POST['reg_email'] ?? '') : '')) ?>" autocomplete="email" required>
         </div>
         <div class="field-row">
           <div class="field">
