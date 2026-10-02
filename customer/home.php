@@ -287,7 +287,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
   <a class="mode <?= $mode === 'all' ? 'active' : '' ?>" href="home.php"><strong>✦ Explore</strong><span>Marketplace</span></a>
   <a class="mode <?= $mode === 'rent' ? 'active' : '' ?>" href="?mode=rent"><strong>👘 Rent</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'buy' ? 'active' : '' ?>" href="?mode=buy"><strong>🛍 Buy</strong><span>Available now</span></a>
-  <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="sell.php"><strong>💰 Sell</strong><span>List an item</span></a>
+  <a class="mode <?= $mode === 'sell' ? 'active' : '' ?>" href="sell.php"><strong>💰 Sell</strong><span>Available now</span></a>
   <a class="mode <?= $mode === 'swap' ? 'active' : '' ?>" href="swap.php"><strong>♻ Swap</strong><span>Available now</span></a>
 </nav>
 
@@ -354,7 +354,7 @@ body { font-family:'Jost',sans-serif; background:var(--cream); color:var(--text)
       <h2><?= htmlspecialchars($modeDescriptions[$mode]['title']) ?></h2>
       <p><?= htmlspecialchars($modeDescriptions[$mode]['subtitle']) ?></p>
     </div>
-    <?php if ($mode === 'swap'): ?><a href="swap.php" class="ai-button" style="text-decoration:none">Open Swap Marketplace</a><?php elseif ($mode !== 'rent' && $mode !== 'all'): ?><div class="coming">Marketplace mode coming next</div><?php endif; ?>
+    <?php if ($mode === 'sell'): ?><a href="sell.php" class="ai-button" style="text-decoration:none">Open Sell Marketplace</a><?php elseif ($mode === 'swap'): ?><a href="swap.php" class="ai-button" style="text-decoration:none">Open Swap Marketplace</a><?php elseif ($mode === 'buy'): ?><a href="?mode=buy" class="ai-button" style="text-decoration:none">Browse Buy Catalogue</a><?php endif; ?>
   </section>
 
   <?php if ($mode === 'buy'): ?>
