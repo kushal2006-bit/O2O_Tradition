@@ -2,7 +2,7 @@
 session_start();require_once '../shared/config.php';require_once '../shared/security.php';o2oCsrfToken();
 $hfSecretFile=trim((string)(getenv('O2O_HF_TOKEN_FILE')?:''));
 if(is_file($hfSecretFile))require_once $hfSecretFile;
-requireLogin('customer','login.php');$db=getDB();$customerId=(int)$_SESSION['customer_id'];$itemId=(int)($_GET['item_id']??$_POST['item_id']??0);$error='';$message='';
+requireLogin('customer','login.php');@set_time_limit(360);$db=getDB();$customerId=(int)$_SESSION['customer_id'];$itemId=(int)($_GET['item_id']??$_POST['item_id']??0);$error='';$message='';
 $st=$db->prepare("SELECT i.*,v.store_name FROM items i JOIN vendors v ON v.id=i.vendor_id WHERE i.id=? AND i.available=1");$st->execute([$itemId]);$item=$st->fetch();if(!$item){header('Location:home.php');exit;}
 $st=$db->prepare("SELECT * FROM user_avatars WHERE customer_id=? ORDER BY created_at DESC");$st->execute([$customerId]);$avatars=$st->fetchAll();
 
@@ -24,11 +24,20 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
   elseif(!$item['image_path']||!is_file($itemImage)){ $db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=? AND status='processing'")->execute([$requestId]);$error='This item does not have a usable product image for try-on.';}
   else{
    $hfBase='https://yisol-idm-vton.hf.space';
-   $uploadFile=function($path)use($hfBase,$hfToken){
-    $ch=curl_init($hfBase.'/gradio_api/upload');$post=['files'=>new CURLFile($path)];
-    curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$hfToken],CURLOPT_POSTFIELDS=>$post,CURLOPT_TIMEOUT=>60]);
-    $raw=curl_exec($ch);$http=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);$data=json_decode($raw?:'',true);
-    if($http<200||$http>=300||!is_array($data)||empty($data[0]))throw new Exception('Upload failed');
+   $hfHeaders=function($token){$h=['Accept: application/json'];if($token!=='')$h[]='Authorization: Bearer '.$token;return $h;};
+   $hfCall=function($url,$method='GET',$body=null,$headers=[]) {
+    $ch=curl_init($url);
+    $opts=[CURLOPT_RETURNTRANSFER=>true,CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>120,CURLOPT_CONNECTTIMEOUT=>20,CURLOPT_HTTPHEADER=>$headers];
+    if($method==='POST'){ $opts[CURLOPT_POST]=true; if($body!==null)$opts[CURLOPT_POSTFIELDS]=$body; }
+    curl_setopt_array($ch,$opts);$raw=curl_exec($ch);$errno=curl_errno($ch);$err=curl_error($ch);$http=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
+    return ['raw'=>$raw===false?'':$raw,'http'=>$http,'errno'=>$errno,'error'=>$err];
+   };
+   $uploadFile=function($path)use($hfBase,$hfToken,$hfHeaders,$hfCall){
+    $post=['files'=>new CURLFile($path)];
+    $r=$hfCall($hfBase.'/gradio_api/upload','POST',$post,$hfHeaders($hfToken));
+    if(($r['http']===401||$r['http']===403)&&$hfToken!=='')$r=$hfCall($hfBase.'/gradio_api/upload','POST',$post,$hfHeaders(''));
+    $data=json_decode($r['raw'],true);
+    if($r['http']<200||$r['http']>=300||!is_array($data)||empty($data[0]))throw new Exception('Upload failed: HTTP '.$r['http']);
     return $data[0];
    };
    try{
@@ -40,36 +49,45 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
       'Traditional wear garment',
       true,false,30,42
     ]];
-    $ch=curl_init($hfBase.'/gradio_api/call/tryon');curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_POST=>true,CURLOPT_HTTPHEADER=>['Content-Type: application/json','Authorization: Bearer '.$hfToken],CURLOPT_POSTFIELDS=>json_encode($payload),CURLOPT_TIMEOUT=>60]);$raw=curl_exec($ch);$http=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-    if($http<200||$http>=300)throw new Exception('Try-on request failed');
-    $job=json_decode($raw?:'',true);$eventId=$job['event_id']??'';if(!$eventId)throw new Exception('No try-on event returned');
-    $resultData=null;$deadline=time()+150;
+    $json=json_encode($payload,JSON_UNESCAPED_SLASHES);if($json===false)throw new Exception('Could not encode try-on request');
+    $postHeaders=['Content-Type: application/json','Accept: application/json'];if($hfToken!=='')$postHeaders[]='Authorization: Bearer '.$hfToken;
+    $r=$hfCall($hfBase.'/gradio_api/call/tryon','POST',$json,$postHeaders);
+    if(($r['http']===401||$r['http']===403)&&$hfToken!==''){$postHeaders=['Content-Type: application/json','Accept: application/json'];$r=$hfCall($hfBase.'/gradio_api/call/tryon','POST',$json,$postHeaders);}
+    if($r['http']<200||$r['http']>=300)throw new Exception('Try-on request failed: HTTP '.$r['http']);
+    $job=json_decode($r['raw'],true);$eventId=$job['event_id']??'';if(!$eventId)throw new Exception('No try-on event returned');
+    $resultData=null;$deadline=time()+300;
     while(time()<$deadline){
-      sleep(3);$ch=curl_init($hfBase.'/gradio_api/call/tryon/'.$eventId);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$hfToken],CURLOPT_TIMEOUT=>30]);$poll=curl_exec($ch);$pollHttp=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-      if($pollHttp<200||$pollHttp>=300)continue;
-      $lines=preg_split("/\r?\n/",$poll?:'');
+      sleep(2);
+      $pollHeaders=['Accept: text/event-stream','Cache-Control: no-cache'];if($hfToken!=='')$pollHeaders[]='Authorization: Bearer '.$hfToken;
+      $r=$hfCall($hfBase.'/gradio_api/call/tryon/'.rawurlencode($eventId),'GET',null,$pollHeaders);
+      if($r['http']<200||$r['http']>=300)continue;
+      $poll=$r['raw'];if(str_contains($poll,'event: error'))throw new Exception('Try-on provider returned an error');
+      $lines=preg_split("/\r?\n/",$poll);
       foreach($lines as $line){
-        if(!str_starts_with($line,'data: '))continue;
-        $data=json_decode(substr($line,6),true);
-        if(!is_array($data))continue;
-        if(isset($data[0])&&is_array($data[0])){$resultData=$data[0];}
+       if(!str_starts_with(trim($line),'data:'))continue;
+       $jsonLine=trim(substr(trim($line),5));$data=json_decode($jsonLine,true);if(!is_array($data))continue;
+       if(isset($data[0])&&is_array($data[0]))$resultData=$data[0];
+       elseif(isset($data['path'])||isset($data['url']))$resultData=$data;
       }
-      if(str_contains($poll?:'','event: complete'))break;
-      if(str_contains($poll?:'','event: error'))throw new Exception('Try-on provider returned an error');
+      if(str_contains($poll,'event: complete'))break;
     }
     $out='';
     if(is_array($resultData)){
-      if(isset($resultData['path']))$out=$resultData['path'];
-      elseif(isset($resultData['url']))$out=$resultData['url'];
+      if(isset($resultData['path']))$out=(string)$resultData['path'];
+      elseif(isset($resultData['url']))$out=(string)$resultData['url'];
     }
-    if(!$out)throw new Exception('No try-on image returned');
-    if(!preg_match('/^https?:\/\//',$out))$out=$hfBase.'/gradio_api/file='.$out;
-    $ch=curl_init($out);curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_HTTPHEADER=>['Authorization: Bearer '.$hfToken],CURLOPT_FOLLOWLOCATION=>true,CURLOPT_TIMEOUT=>60]);$bytes=curl_exec($ch);$code=curl_getinfo($ch,CURLINFO_HTTP_CODE);curl_close($ch);
-    if($code<200||$code>=300||$bytes===false)throw new Exception('Could not retrieve result image');
-    $dir=__DIR__.'/../uploads/tryon';if(!is_dir($dir))@mkdir($dir,0755,true);$filename='tryon_'.$customerId.'_'.$requestId.'_'.bin2hex(random_bytes(4)).'.png';
+    if(!$out)throw new Exception('No try-on image returned before timeout');
+    if(!preg_match('/^https?:\/\//',$out))$out=$hfBase.'/gradio_api/file='.ltrim($out,'/');
+    $resultHeaders=[];if($hfToken!=='')$resultHeaders[]='Authorization: Bearer '.$hfToken;
+    $r=$hfCall($out,'GET',null,$resultHeaders);
+    if(($r['http']===401||$r['http']===403)&&$hfToken!=='')$r=$hfCall($out,'GET',null,[]);
+    if($r['http']<200||$r['http']>=300||$r['raw']==='')throw new Exception('Could not retrieve result image: HTTP '.$r['http']);
+    $bytes=$r['raw'];
+    $dir=__DIR__.'/../uploads/tryon';if(!is_dir($dir)&&!@mkdir($dir,0755,true)&&!is_dir($dir))throw new Exception('Could not create result directory');
+    $filename='tryon_'.$customerId.'_'.$requestId.'_'.bin2hex(random_bytes(4)).'.png';
     if(file_put_contents($dir.'/'.$filename,$bytes)===false)throw new Exception('Could not save result image');
     $db->prepare("UPDATE tryon_requests SET result_image=?,status='completed' WHERE id=?")->execute([$filename,$requestId]);$message='Free AI virtual try-on completed. This is a visualization, not a guarantee of fit or exact drape.';
-   }catch(Throwable $e){$db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=?")->execute([$requestId]);$error='The free AI try-on service could not complete this request. Please try again later.';}
+   }catch(Throwable $e){error_log('O2O try-on request '.$requestId.' failed: '.$e->getMessage());$db->prepare("UPDATE tryon_requests SET status='failed' WHERE id=?")->execute([$requestId]);$error='The free AI try-on service could not complete this request. Please try again later.';}
    }
   }
  }}
