@@ -1,0 +1,23 @@
+<?php
+session_start();require_once '../shared/config.php';require_once '../shared/security.php';require_once '../shared/notifications.php';
+if(!isset($_SESSION['admin_id'])){header('Location: login.php');exit;}
+o2oCsrfToken();$db=getDB();$adminId=(int)$_SESSION['admin_id'];$error='';$success='';
+if($_SERVER['REQUEST_METHOD']==='POST'){
+ o2oRequireCsrf();$id=(int)($_POST['id']??0);$decision=$_POST['decision']??'';
+ $st=$db->prepare("SELECT dr.*,c.email,c.name FROM customer_deletion_requests dr JOIN customers c ON c.id=dr.customer_id WHERE dr.id=? LIMIT 1");$st->execute([$id]);$r=$st->fetch();
+ if(!$r||$r['status']!=='requested')$error='Deletion request is no longer pending.';
+ elseif(!in_array($decision,['approve','reject'],true))$error='Invalid deletion decision.';
+ elseif($decision==='reject'){$db->prepare("UPDATE customer_deletion_requests SET status='rejected',reviewed_at=NOW(),reviewed_by=? WHERE id=? AND status='requested'")->execute([$adminId,$id]);$success='Deletion request rejected.';}
+ else{
+  $db->beginTransaction();
+  try{
+   $cid=(int)$r['customer_id'];$anon='Deleted Customer #'.$cid;$email='deleted-'.$cid.'@invalid.local';$password=password_hash(bin2hex(random_bytes(32)),PASSWORD_DEFAULT);
+   $db->prepare("UPDATE customers SET name=?,email=?,phone=NULL,pincode=NULL,address=NULL,password=?,account_status='deactivated',deactivated_at=NOW(),email_verified_at=NULL,verification_token_hash=NULL,verification_expires_at=NULL,password_reset_token_hash=NULL,password_reset_expires_at=NULL,otp_token_hash=NULL,otp_expires_at=NULL,otp_last_sent_at=NULL,otp_failed_attempts=0,failed_login_count=0,locked_until=NULL,email_notifications_enabled=0 WHERE id=?")->execute([$anon,$email,$password,$cid]);
+   $db->prepare("UPDATE customer_deletion_requests SET status='approved',reviewed_at=NOW(),reviewed_by=? WHERE id=? AND status='requested'")->execute([$adminId,$id]);
+   $db->prepare("INSERT INTO admin_actions(admin_id,action_type,target_type,target_id,details) VALUES(?,?,?,?,?)")->execute([$adminId,'customer_deletion_approved','customer',$cid,'Personal account fields anonymized; transaction records retained.']);
+   $db->commit();$success='Deletion request approved and the customer account was anonymized.';
+  }catch(Throwable $e){if($db->inTransaction())$db->rollBack();$error='Could not complete deletion request.';error_log('Customer deletion failed: '.$e->getMessage());}
+ }
+}
+$st=$db->query("SELECT dr.*,c.name,c.email FROM customer_deletion_requests dr JOIN customers c ON c.id=dr.customer_id ORDER BY FIELD(dr.status,'requested','rejected','approved','cancelled'),dr.requested_at DESC LIMIT 200");$rows=$st->fetchAll();
+?><!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Customer Deletion Requests</title><style>body{font-family:Arial;background:#FAF6EE;color:#3D2B0F;margin:0}.nav{background:#1A1108;color:#C9A84C;padding:20px 30px}.nav a{color:#E8CC82;margin-left:18px}.main{max-width:1100px;margin:auto;padding:30px}.card{background:#fff;border:1px solid #E8E0D0;padding:18px;margin-bottom:15px}.meta{font-size:12px;color:#777}.btn{background:#1A1108;color:#C9A84C;border:0;padding:10px 15px;margin-right:8px}.danger{background:#7F1D1D}.ok{background:#ECFDF5;color:#065F46;padding:10px;margin-bottom:15px}.err{background:#FEF2F2;color:#991B1B;padding:10px;margin-bottom:15px}</style></head><body><div class="nav"><b>O2O Tradition · Admin</b><span><a href="dashboard.php">Dashboard</a><a href="complaints.php">Complaints</a><a href="audit.php">Audit Log</a></span></div><main class="main"><h1>Customer Deletion Requests</h1><?php if($success):?><div class="ok"><?=htmlspecialchars($success)?></div><?php endif;?><?php if($error):?><div class="err"><?=htmlspecialchars($error)?></div><?php endif;?><?php foreach($rows as $x):?><section class="card"><h3>#<?=intval($x['id'])?> · <?=htmlspecialchars($x['name'])?></h3><div class="meta"><?=htmlspecialchars($x['email'])?> · <?=htmlspecialchars($x['status'])?> · requested <?=htmlspecialchars($x['requested_at'])?></div><?php if($x['reason']):?><p><?=nl2br(htmlspecialchars($x['reason']))?></p><?php endif;?><?php if($x['status']==='requested'):?><form method="POST"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['csrf_token'])?>"><input type="hidden" name="id" value="<?=$x['id']?>"><button class="btn danger" name="decision" value="approve" onclick="return confirm('Approve anonymization of this customer account?')">Approve & Anonymize</button><button class="btn" name="decision" value="reject">Reject</button></form><?php endif;?></section><?php endforeach;if(!$rows):?><section class="card">No deletion requests.</section><?php endif;?></main></body></html>

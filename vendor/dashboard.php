@@ -1,0 +1,156 @@
+<?php
+session_start();require_once '../shared/config.php';
+require_once '../shared/security.php';require_once '../shared/notifications.php';require_once '../shared/rewards.php';require_once '../shared/rental_tracking.php';
+o2oCsrfToken();requireLogin('vendor','login.php');$db=getDB();$vendorId=(int)$_SESSION['vendor_id'];$storeName=$_SESSION['vendor_name'];$vendorLoc=$db->prepare('SELECT latitude,longitude FROM vendors WHERE id=?');$vendorLoc->execute([$vendorId]);$vendorLoc=$vendorLoc->fetch();$vendorLat=$vendorLoc['latitude']??null;$vendorLng=$vendorLoc['longitude']??null;
+$vendorProfileStmt=$db->prepare('SELECT opening_time,closing_time,pickup_instructions,delivery_available,phone,address,pincode FROM vendors WHERE id=?');$vendorProfileStmt->execute([$vendorId]);$vendorProfile=$vendorProfileStmt->fetch()?:[];
+$vendorNotificationStmt=$db->prepare("SELECT COUNT(*) FROM vendor_notifications WHERE vendor_id=? AND is_read=0");$vendorNotificationStmt->execute([$vendorId]);$unreadVendorNotifications=(int)$vendorNotificationStmt->fetchColumn();
+if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='save_store_profile'){
+  o2oRequireCsrf();
+  $opening=trim((string)($_POST['opening_time']??''));$closing=trim((string)($_POST['closing_time']??''));$pickup=trim((string)($_POST['pickup_instructions']??''));
+  $delivery=isset($_POST['delivery_available'])?1:0;
+  $validTime=function(string $value):bool{return $value===''||preg_match('/^([01]\\d|2[0-3]):[0-5]\\d$/',$value)===1;};
+  if(!$validTime($opening)||!$validTime($closing)){$profileError='Use valid opening and closing times.';}
+  else{$db->prepare('UPDATE vendors SET opening_time=?,closing_time=?,pickup_instructions=?,delivery_available=? WHERE id=?')->execute([$opening!==''?$opening:null,$closing!==''?$closing:null,$pickup!==''?$pickup:null,$delivery,$vendorId]);header('Location: dashboard.php#store-profile');exit;}
+}
+if($_SERVER['REQUEST_METHOD']==='POST'&&($_POST['action']??'')==='save_location'){
+  o2oRequireCsrf();
+  $lat=trim($_POST['latitude']??'');$lng=trim($_POST['longitude']??'');
+  if($lat===''&&$lng===''){$db->prepare("UPDATE vendors SET latitude=NULL,longitude=NULL WHERE id=?")->execute([$vendorId]);}
+  elseif(is_numeric($lat)&&is_numeric($lng)&&abs((float)$lat)<=90&&abs((float)$lng)<=180){$db->prepare("UPDATE vendors SET latitude=?,longitude=? WHERE id=?")->execute([(float)$lat,(float)$lng,$vendorId]);}
+  header('Location: dashboard.php#store-location');exit;
+}
+function addCustomerNotification(PDO $db,int $customerId,string $type,string $title,string $message):void{$db->prepare("INSERT INTO notifications(customer_id,type,title,message) VALUES(?,?,?,?)")->execute([$customerId,$type,$title,$message]);}
+if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['action'])){o2oRequireCsrf();
+  $orderId=intval($_POST['order_id']??0);$action=$_POST['action']??'';
+  if($action==='confirm'){
+    $q=$db->prepare("SELECT customer_id,status,payment_method,payment_status FROM orders WHERE id=? AND vendor_id=?");
+    $q->execute([$orderId,$vendorId]);$r=$q->fetch();
+    $paymentReady=$r&&($r['payment_method']==='Cash on Delivery'||$r['payment_status']==='paid');
+    if($r&&$r['status']==='new'&&$paymentReady){
+      if(o2oRentalRecordEvent($db,$orderId,$vendorId,'confirmed','Vendor confirmed the rental booking.')){
+        addCustomerNotification($db,(int)$r['customer_id'],'rental_status','Rental confirmed','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' has been confirmed by the vendor.');
+      }
+    }
+  }elseif($action==='pickup'){
+    $q=$db->prepare("SELECT customer_id,status,payment_method,payment_status FROM orders WHERE id=? AND vendor_id=?");
+    $q->execute([$orderId,$vendorId]);$r=$q->fetch();
+    $paymentReady=$r&&($r['payment_method']==='Cash on Delivery'||$r['payment_status']==='paid');
+    if($r&&$r['status']==='new'&&$paymentReady&&o2oRentalHasEvent($db,$orderId,'confirmed')){
+      $update=$db->prepare("UPDATE orders SET status='in_progress' WHERE id=? AND vendor_id=? AND status='new'");
+      $update->execute([$orderId,$vendorId]);
+      if($update->rowCount()===1){
+        o2oRentalRecordEvent($db,$orderId,$vendorId,'picked_up','Rental handed over to customer and marked active.');
+        addCustomerNotification($db,(int)$r['customer_id'],'rental_status','Rental picked up','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' is now active.');
+      }
+    }
+  }elseif($action==='complete'){
+    $actual=$_POST['actual_return_date']??date('Y-m-d');
+    $st=$db->prepare("SELECT o.*,i.late_charge_per_day FROM orders o JOIN items i ON o.item_id=i.id WHERE o.id=? AND o.vendor_id=?");
+    $st->execute([$orderId,$vendorId]);$o=$st->fetch();
+    if($o&&$o['status']==='in_progress'){
+      $lateDays=max(0,(int)ceil((strtotime($actual)-strtotime($o['return_date']))/86400));$lateCharge=$lateDays*$o['late_charge_per_day'];
+      $db->beginTransaction();try{
+        $up=$db->prepare("UPDATE orders SET status='completed',actual_return_date=?,late_days=?,late_charges=? WHERE id=? AND vendor_id=? AND status='in_progress'");
+        $up->execute([$actual,$lateDays,$lateCharge,$orderId,$vendorId]);
+        if($up->rowCount()!==1)throw new RuntimeException('Rental order was already completed or is no longer active.');
+        o2oRentalRecordEvent($db,$orderId,$vendorId,'returned','Vendor recorded the returned rental.');
+        o2oAwardReward($db,(int)$o['customer_id'],50,'Completed rental','rental_completed',(int)$orderId);
+        $db->prepare("INSERT INTO sanitization_records (item_id,rental_order_id,created_by_vendor_id,status) VALUES (?,?,?,'pending')")->execute([$o['item_id'],$orderId,$vendorId]);
+        addCustomerNotification($db,(int)$o['customer_id'],'rental_status','Rental returned','Your rental order #'.str_pad($orderId,6,'0',STR_PAD_LEFT).' has been marked returned. Inspection and sanitization are now pending.');
+        $db->commit();
+      }catch(Throwable $e){$db->rollBack();}
+    }
+  }
+  header('Location: dashboard.php');exit;
+}
+$buyAction=$_POST['buy_action']??null;
+if($_SERVER['REQUEST_METHOD']==='POST'&&$buyAction){o2oRequireCsrf();
+  $purchaseId=intval($_POST['purchase_id']??0);
+  $allowedTransitions=[
+    'confirmed'=>['packed','cancelled'],
+    'packed'=>['shipped','cancelled'],
+    'shipped'=>['delivered'],
+    'delivered'=>[],
+    'cancelled'=>[]
+  ];
+  if($purchaseId>0&&isset($allowedTransitions[$buyAction])){
+    $q=$db->prepare("SELECT customer_id,order_status,payment_method,payment_status,reward_credit_used FROM purchase_orders WHERE id=? AND vendor_id=?");
+    $q->execute([$purchaseId,$vendorId]);
+    $buyer=$q->fetch();
+    $paymentReady=$buyer&&($buyer['payment_method']==='Cash on Delivery'||$buyer['payment_status']==='paid');
+    if($buyer&&$buyAction!=='cancelled'&&!$paymentReady){
+      $buyer=null;
+    }
+    $changed=false;
+    if($buyer&&$buyAction==='cancelled'&&$buyer['payment_method']==='Online Payment'&&$buyer['payment_status']==='paid'){$buyer=null;}
+    if($buyer&&in_array($buyAction,$allowedTransitions[$buyer['order_status']]??[],true)){
+      if($buyAction==='cancelled'){
+        $db->beginTransaction();
+        try{
+          $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status='cancelled',payment_status=CASE WHEN payment_status='pending' THEN 'failed' ELSE payment_status END WHERE id=? AND vendor_id=? AND order_status=?");
+          $buyUpdate->execute([$purchaseId,$vendorId,$buyer['order_status']]);
+          if($buyUpdate->rowCount()!==1)throw new RuntimeException('Buy order changed before cancellation.');
+          $changed=true;
+          if((float)$buyer['reward_credit_used']>0)o2oRefundRewardCredits($db,(int)$buyer['customer_id'],(float)$buyer['reward_credit_used'],$purchaseId);
+          $db->prepare("UPDATE product_modes pm JOIN purchase_order_items poi ON poi.item_id=pm.item_id SET pm.available=1 WHERE poi.order_id=? AND pm.mode='buy'")->execute([$purchaseId]);
+          $db->prepare("UPDATE items i JOIN purchase_order_items poi ON poi.item_id=i.id SET i.available=1 WHERE poi.order_id=?")->execute([$purchaseId]);
+          $db->prepare("UPDATE payment_transactions SET status='failed',failure_reason='Purchase order cancelled before payment confirmation.' WHERE order_type='purchase' AND order_id=? AND status='created'")->execute([$purchaseId]);
+          $db->commit();
+        }catch(Throwable $e){if($db->inTransaction())$db->rollBack();error_log('Buy cancellation failed: '.$e->getMessage());}
+      }else{
+        $buyUpdate=$db->prepare("UPDATE purchase_orders SET order_status=? WHERE id=? AND vendor_id=? AND order_status=? AND (payment_method='Cash on Delivery' OR payment_status='paid')");
+        $buyUpdate->execute([$buyAction,$purchaseId,$vendorId,$buyer['order_status']]);
+        if($buyUpdate->rowCount()===1){$changed=true;}
+        if($buyUpdate->rowCount()===1 && $buyAction==='delivered'){
+          o2oAwardReward($db,(int)$buyer['customer_id'],20,'Buy order delivered','buy_delivered',(int)$purchaseId);
+        }
+      }
+      if(!$changed) { header('Location: dashboard.php'); exit; }
+      $labels=['packed'=>'packed','shipped'=>'shipped','delivered'=>'delivered','cancelled'=>'cancelled'];
+      $label=$labels[$buyAction]??$buyAction;
+      addCustomerNotification($db,(int)$buyer['customer_id'],'buy_status','Buy order updated','Your buy order #'.str_pad($purchaseId,6,'0',STR_PAD_LEFT).' is now '.$label.'.');
+    }
+  }
+  header('Location: dashboard.php');exit;
+}
+$filter=$_GET['filter']??'all';$sql="SELECT o.*,i.name item_name,i.image_path,i.late_charge_per_day,c.name customer_name,c.phone customer_phone FROM orders o JOIN items i ON o.item_id=i.id JOIN customers c ON o.customer_id=c.id WHERE o.vendor_id=?";$params=[$vendorId];if($filter!=='all'){$sql.=" AND o.status=?";$params[]=$filter;}$sql.=" ORDER BY o.created_at DESC";$st=$db->prepare($sql);$st->execute($params);$orders=$st->fetchAll();
+$cs=$db->prepare("SELECT status,COUNT(*) cnt FROM orders WHERE vendor_id=? GROUP BY status");$cs->execute([$vendorId]);$counts=['all'=>0,'new'=>0,'in_progress'=>0,'completed'=>0];foreach($cs->fetchAll() as $r){$counts[$r['status']]=$r['cnt'];$counts['all']+=$r['cnt'];}
+$rentalEvents=[];
+if($orders){
+  $eventStmt=$db->prepare("SELECT rental_order_id,event_type FROM rental_tracking_events WHERE vendor_id=? ORDER BY created_at ASC");
+  $eventStmt->execute([$vendorId]);
+  foreach($eventStmt->fetchAll() as $event){$rentalEvents[(int)$event['rental_order_id']][$event['event_type']]=true;}
+}
+$rs=$db->prepare("SELECT COALESCE(SUM(total_rent+COALESCE(late_charges,0)),0) FROM orders WHERE vendor_id=? AND status='completed'");$rs->execute([$vendorId]);$revenue=$rs->fetchColumn();
+$buyStmt=$db->prepare("SELECT po.*,poi.quantity,poi.unit_price,poi.total_price,i.name item_name,i.image_path,c.name customer_name,c.phone customer_phone
+  FROM purchase_orders po JOIN purchase_order_items poi ON poi.order_id=po.id
+  JOIN items i ON i.id=poi.item_id JOIN customers c ON c.id=po.customer_id
+  WHERE po.vendor_id=? ORDER BY po.created_at DESC");
+$buyStmt->execute([$vendorId]);$buyOrders=$buyStmt->fetchAll();
+$buyCount=count($buyOrders);
+$buyRevenueStmt=$db->prepare("SELECT COALESCE(SUM(total_amount),0) FROM purchase_orders WHERE vendor_id=? AND order_status='delivered'");
+$buyRevenueStmt->execute([$vendorId]);$buyRevenue=$buyRevenueStmt->fetchColumn();
+?><!doctype html><html><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Dashboard – O2O Tradition</title><style>
+body{font-family:Arial,sans-serif;background:#F4F7F4;margin:0;color:#1A2E1A}.nav{background:#0F1B2D;color:#C9A84C;padding:18px 28px;display:flex;justify-content:space-between}.nav a{color:#E8CC82;text-decoration:none;margin-left:15px}.main{max-width:1100px;margin:auto;padding:30px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:15px}.stat,.card{background:#fff;padding:18px;box-shadow:0 2px 10px #0001}.stat b{font:30px Georgia,serif;display:block}.filters{margin:25px 0;display:flex;gap:8px;flex-wrap:wrap}.filters a{padding:8px 13px;background:#fff;border:1px solid #ddd;text-decoration:none;color:#555}.filters .active{background:#0F1B2D;color:#C9A84C}.order{background:#fff;margin:12px 0;box-shadow:0 2px 10px #0001}.head{padding:12px 18px;background:#fafafa;border-bottom:1px solid #ddd;display:flex;justify-content:space-between}.body{padding:18px;display:flex;gap:15px}.thumb{width:70px;height:70px;background:#E8E0D0;display:flex;align-items:center;justify-content:center;font-size:28px}.thumb img{width:70px;height:70px;object-fit:cover}.actions{margin-left:auto;min-width:180px}.actions form{margin-bottom:8px}.actions button,.actions input{width:100%;box-sizing:border-box;padding:9px}.actions button{border:0;background:#0D4F4F;color:#fff}.complete{background:#065F46!important}.status{padding:4px 9px;border-radius:15px;font-size:11px}.new{background:#FEF3C7}.progress{background:#DBEAFE}.done{background:#D1FAE5}.empty{text-align:center;padding:60px;color:#888}@media(max-width:750px){.stats{grid-template-columns:1fr 1fr}.body{flex-wrap:wrap}.actions{margin-left:0;width:100%}}</style></head><body><div class="nav"><div>O2O Tradition · <?=htmlspecialchars($storeName)?></div><div><a href="add_item.php">Add Item</a><a href="#store-location">📍 Location</a><a href="customers.php">Customers</a><a href="reviews.php">Reviews</a><a href="notifications.php">🔔 Notifications<?php if($unreadVendorNotifications): ?> (<?=$unreadVendorNotifications?>)<?php endif; ?></a><a href="inventory.php">Inventory</a><a href="sell_listings.php">Sell Review</a><a href="verification.php">Verification</a><a href="trust_records.php">Trust Records</a><a href="condition_ai.php">AI Condition</a><a href="review_summary.php">AI Reviews</a><a href="demand.php">Demand Intelligence</a><a href="logout.php">Logout</a></div></div><div class="main"><h1>Orders Dashboard</h1><section class="card" id="store-profile" style="margin:25px 0"><h2>🏬 Store Profile</h2><p style="font-size:12px;color:#777">Set customer-facing hours and pickup/delivery instructions. Phone, address and pincode remain from your vendor account.</p><?php if(!empty($profileError)):?><div style="padding:10px;background:#FEF2F2;color:#991B1B;margin-bottom:12px"><?=htmlspecialchars($profileError)?></div><?php endif;?><form method="POST" style="display:grid;grid-template-columns:1fr 1fr;gap:12px"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['csrf_token'])?>"><input type="hidden" name="action" value="save_store_profile"><label style="font-size:12px">Opening time<input type="time" name="opening_time" value="<?=htmlspecialchars(substr((string)($vendorProfile['opening_time']??''),0,5))?>" style="width:100%;padding:9px;box-sizing:border-box"></label><label style="font-size:12px">Closing time<input type="time" name="closing_time" value="<?=htmlspecialchars(substr((string)($vendorProfile['closing_time']??''),0,5))?>" style="width:100%;padding:9px;box-sizing:border-box"></label><label style="font-size:12px;grid-column:1/-1">Pickup instructions<textarea name="pickup_instructions" maxlength="500" rows="3" style="width:100%;padding:9px;box-sizing:border-box" placeholder="Example: Pickup from front desk; bring booking ID."><?=htmlspecialchars((string)($vendorProfile['pickup_instructions']??''))?></textarea></label><label style="font-size:12px;grid-column:1/-1"><input type="checkbox" name="delivery_available" value="1" <?=$vendorProfile['delivery_available']?'checked':''?>> Delivery available from this store</label><button type="submit" style="padding:10px;background:#0D4F4F;color:#fff;border:0;width:max-content">Save Store Profile</button></form><div style="font-size:12px;color:#777;margin-top:12px">📞 <?=htmlspecialchars((string)($vendorProfile['phone']??''))?> · 📍 <?=htmlspecialchars((string)($vendorProfile['address']??''))?> · <?=htmlspecialchars((string)($vendorProfile['pincode']??''))?></div></section>
+<section class="card" id="store-location" style="margin:25px 0"><h2>📍 Store Map Location</h2><p style="font-size:12px;color:#777">Save coordinates so customers can see your store on the hyperlocal map.</p><form method="POST" style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end"><input type="hidden" name="csrf_token" value="<?=htmlspecialchars($_SESSION['csrf_token'])?>"><input type="hidden" name="action" value="save_location"><label style="font-size:12px">Latitude<input id="storeLat" name="latitude" value="<?=htmlspecialchars((string)($vendorLat??''))?>" style="width:100%;padding:9px;box-sizing:border-box"></label><label style="font-size:12px">Longitude<input id="storeLng" name="longitude" value="<?=htmlspecialchars((string)($vendorLng??''))?>" style="width:100%;padding:9px;box-sizing:border-box"></label><button type="submit" style="padding:10px;background:#0D4F4F;color:#fff;border:0">Save Location</button></form><button type="button" id="useBrowserLocation" style="margin-top:10px;padding:9px">Use current browser location</button></section><div class="stats"><div class="stat">📋<b><?=$counts['all']?></b><small>Rental Orders</small></div><div class="stat">⏳<b><?=$counts['new']?></b><small>New Rentals</small></div><div class="stat">🚀<b><?=$counts['in_progress']?></b><small>Active Rentals</small></div><div class="stat">₹<b><?=number_format($revenue,0)?></b><small>Rental Revenue</small></div><div class="stat">🛍️<b><?=$buyCount?></b><small>Buy Orders</small></div><div class="stat">₹<b><?=number_format($buyRevenue,0)?></b><small>Delivered Buy Revenue</small></div></div><div class="filters"><?php foreach(['all','new','in_progress','completed'] as $f):?><a class="<?=$filter===$f?'active':''?>" href="?filter=<?=$f?>"><?=ucwords(str_replace('_',' ',$f))?> (<?=$counts[$f]?>)</a><?php endforeach;?></div><?php if($orders):foreach($orders as $o):?><div class="order"><div class="head"><span>Order #<?=str_pad($o['id'],6,'0',STR_PAD_LEFT)?> · <?=date('d M Y, h:i A',strtotime($o['created_at']))?></span><span class="status <?=$o['status']==='new'?'new':($o['status']==='in_progress'?'progress':'done')?>"><?=ucwords(str_replace('_',' ',$o['status']))?></span></div><div class="body"><div class="thumb"><?php if($o['image_path']&&file_exists('../uploads/items/'.$o['image_path'])):?><img src="../uploads/items/<?=htmlspecialchars($o['image_path'])?>"><?php else:?>👘<?php endif;?></div><div><h3 style="margin:0 0 7px"><?=htmlspecialchars($o['item_name'])?></h3><div>Customer: <b><?=htmlspecialchars($o['customer_name'])?></b></div><div>Pickup: <b><?=htmlspecialchars($o['pickup_date'])?></b> · Return: <b><?=htmlspecialchars($o['return_date'])?></b></div><div>Total: <b style="color:#8B1A1A">₹<?=number_format($o['final_total'],0)?></b></div><div style="font-size:12px;color:#777">Payment: <?=htmlspecialchars($o['payment_method'])?> · <?=htmlspecialchars($o['payment_status'])?></div></div><div class="actions"><?php if($o['status']==='new'&&!($o['payment_method']==='Online Payment'&&$o['payment_status']!=='paid')&&!isset($rentalEvents[(int)$o['id']]['confirmed'])):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="action" value="confirm"><input type="hidden" name="order_id" value="<?=$o['id']?>"><button>✓ Confirm Order</button></form><?php elseif($o['status']==='new'&&isset($rentalEvents[(int)$o['id']]['confirmed'])):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="action" value="pickup"><input type="hidden" name="order_id" value="<?=$o['id']?>"><button>📦 Mark Pickup / Handover</button></form><?php elseif($o['status']==='new'&&$o['payment_method']==='Online Payment'&&$o['payment_status']!=='paid'):?><div style="color:#B45309">⏳ Awaiting online payment</div><?php elseif($o['status']==='in_progress'):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="action" value="complete"><input type="hidden" name="order_id" value="<?=$o['id']?>"><input type="date" name="actual_return_date" value="<?=date('Y-m-d')?>"><button class="complete">✓ Mark Returned</button></form><?php else:?><div style="color:#16A34A">✅ Completed<?php if($o['late_charges']>0):?> · Late ₹<?=number_format($o['late_charges'],0)?><?php endif;?></div><?php endif;?></div></div></div><?php endforeach;else:?><div class="empty">📭<h2>No rental orders</h2><p>Customer rental orders will appear here.</p></div><?php endif;?>
+<h2 style="margin:40px 0 15px">🛍️ Buy Orders</h2>
+<?php if($buyOrders):foreach($buyOrders as $bo):?>
+<div class="order"><div class="head"><span>Buy Order #<?=str_pad($bo['id'],6,'0',STR_PAD_LEFT)?> · <?=date('d M Y, h:i A',strtotime($bo['created_at']))?></span><span class="status <?=in_array($bo['order_status'],['delivered'])?'done':($bo['order_status']==='cancelled'?'new':'progress')?>"><?=ucwords($bo['order_status'])?></span></div>
+<div class="body"><div class="thumb"><?php if($bo['image_path']&&file_exists('../uploads/items/'.$bo['image_path'])):?><img src="../uploads/items/<?=htmlspecialchars($bo['image_path'])?>"><?php else:?>🛍️<?php endif;?></div><div><h3 style="margin:0 0 7px"><?=htmlspecialchars($bo['item_name'])?></h3><div>Customer: <b><?=htmlspecialchars($bo['customer_name'])?></b></div><div>Quantity: <b><?=intval($bo['quantity'])?></b> · Unit: <b>₹<?=number_format($bo['unit_price'],0)?></b></div><div>Shipping: <b><?=htmlspecialchars($bo['shipping_address'])?></b></div><div>Total: <b style="color:#8B1A1A">₹<?=number_format($bo['total_amount'],0)?></b></div></div>
+<div class="actions">
+<?php if($bo['order_status']==='confirmed'):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="packed"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button>✓ Mark Packed</button></form>
+<?php elseif($bo['order_status']==='packed'):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="shipped"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button>✓ Mark Shipped</button></form>
+<?php elseif($bo['order_status']==='shipped'):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="delivered"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button class="complete">✓ Mark Delivered</button></form>
+<?php elseif($bo['order_status']==='delivered'):?><div style="color:#16A34A">✅ Delivered</div>
+<?php elseif($bo['order_status']==='cancelled'):?><div style="color:#DC2626">✕ Cancelled</div><?php endif;?>
+<?php if(in_array($bo['order_status'],['confirmed','packed'],true) && ($bo['payment_method']==='Cash on Delivery' || $bo['payment_status']!=='paid')):?><form method="POST">
+<input type="hidden" name="csrf_token" value="<?= htmlspecialchars($_SESSION['csrf_token']) ?>"><input type="hidden" name="buy_action" value="cancelled"><input type="hidden" name="purchase_id" value="<?=$bo['id']?>"><button style="background:#7F1D1D">Cancel Buy Order</button></form><?php endif;?>
+</div></div></div>
+<?php endforeach;else:?><div class="empty" style="padding:35px">🛍️<h3>No buy orders yet</h3><p>Customer purchases will appear here.</p></div><?php endif;?>
+</div><script>document.getElementById("useBrowserLocation")?.addEventListener("click",()=>{if(!navigator.geolocation)return alert("Location is unavailable in this browser.");navigator.geolocation.getCurrentPosition(p=>{document.getElementById("storeLat").value=p.coords.latitude.toFixed(7);document.getElementById("storeLng").value=p.coords.longitude.toFixed(7);},()=>alert("Location permission was not granted."));});</script></body></html>
